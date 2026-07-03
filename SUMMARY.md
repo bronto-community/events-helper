@@ -254,6 +254,16 @@ Extended observability beyond traces:
   plan with no drain; a `BRONTO_DIRECT_LOGS=false` toggle disables it once a drain is live (to avoid
   duplicates). Validated the payload returns HTTP 200 and a live turn ships correlated logs.
 
+## 15. Dataset split in Bronto
+
+Observed that traces, runtime logs, and deployment events were all landing in one dataset
+(`agent-traces` — a poorly-chosen name). Reorganized the Bronto `events-helper` collection into two
+datasets: **`agent-runtime`** for traces + runtime logs (they belong together, correlated by trace
+id) and **`agent-deployments`** for deployment events. `BRONTO_DATASET` now = `agent-runtime` (used
+by the trace exporter and `lib/log.ts`); new `BRONTO_DEPLOY_DATASET` = `agent-deployments` (used by
+`scripts/notify-deploy.mjs`). Env updated across prod/preview/dev. (Old `agent-traces` data stays as
+history in Bronto.)
+
 ## Appendix: prompts/asks in order
 
 1. "Build a bot with CfP/event sources (developers.events), easy to add sources or hunt for them,
@@ -280,3 +290,6 @@ Extended observability beyond traces:
 15. "Tag (not just name) the users in the message." → `roles` returns Slack `<@Uxxxx>` mentions.
 16. "Improve observability: reasonable logs that fit the traces, and deployment logs — does Vercel
     give me something?" → trace-correlated app logs + Bronto deploy log + Vercel Drains guidance.
+17. "Continue with the free-plan part." → agent pushes logs directly to Bronto (no drain needed).
+18. "Traces + runtime logs in one bucket, deployments in another (agent-traces was a bad name)." →
+    split into `agent-runtime` and `agent-deployments` datasets.

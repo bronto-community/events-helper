@@ -65,6 +65,9 @@ via Connect SDK), and `scripts/precommit.sh` (gitleaks + typecheck + docs-sync).
 - **Jira = Atlassian remote MCP** via Vercel Connect, **user-scoped** (each user signs in with
   their own Atlassian account). Writes gated on approval by a name-based policy.
 - **Slack + Jira run through Vercel Connect** — no bot tokens/signing secrets in code.
+- **Observability datasets** (Bronto collection `events-helper`): traces **and** runtime logs share
+  `agent-runtime` (`BRONTO_DATASET`); deployment events go to `agent-deployments`
+  (`BRONTO_DEPLOY_DATASET`). Keep this split — don't send logs to the deploy dataset or vice versa.
 - **Observability**: OTLP traces → Bronto (`instrumentation.ts`); structured app logs via `lib/log.ts`
   carry the active `traceId`/`spanId` so they correlate with those spans. Use `log.info/warn/error`
   in tools/lib for meaningful events (never log secrets). `lib/log.ts` also **pushes logs directly to
@@ -130,7 +133,9 @@ full env-var list and one-time Connect setup.
 | `BLOB_READ_WRITE_TOKEN` | Vercel Blob store token (persistence; else local-file fallback) |
 | `BRONTO_OTLP_ENDPOINT` | Bronto OTLP base URL, e.g. `https://ingestion.eu.bronto.io` |
 | `BRONTO_API_KEY` | Bronto ingest key (`x-bronto-api-key`) |
-| `BRONTO_COLLECTION` / `BRONTO_DATASET` | Bronto routing labels (`events-helper` / `agent-traces`) |
+| `BRONTO_COLLECTION` | Bronto collection (default `events-helper`) |
+| `BRONTO_DATASET` | Dataset for **traces + runtime logs** (`agent-runtime`) |
+| `BRONTO_DEPLOY_DATASET` | Dataset for **deployment events** (`agent-deployments`) |
 | `BRONTO_RECORD_IO` | `false` to redact prompts/outputs from spans |
 | `BRONTO_DIRECT_LOGS` | `false` to stop the agent pushing logs straight to Bronto (use once a Vercel log drain is live, to avoid dupes) |
 | `SLACK_DIGEST_CHANNEL_ID` | Target channel for the weekly digest (unset = digest no-ops) |

@@ -72,9 +72,10 @@ async function postBrontoDeployLog() {
   const headers = {
     "Content-Type": "application/json",
     "x-bronto-api-key": apiKey,
+    // Deployment events go to their own dataset, separate from traces + runtime logs.
+    "x-bronto-dataset": process.env.BRONTO_DEPLOY_DATASET || "agent-deployments",
   };
   if (process.env.BRONTO_COLLECTION) headers["x-bronto-collection"] = process.env.BRONTO_COLLECTION;
-  if (process.env.BRONTO_DATASET) headers["x-bronto-dataset"] = process.env.BRONTO_DATASET;
   try {
     const r = await fetch(`${endpoint}/v1/logs`, {
       method: "POST",

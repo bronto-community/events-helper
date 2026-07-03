@@ -101,7 +101,9 @@ or with `vercel env add <NAME> production`.
 | `SLACK_CONNECTOR` | no | Slack Connect connector uid (default `slack/bronto-events-helper`) |
 | `BRONTO_OTLP_ENDPOINT` | for tracing | e.g. `https://ingestion.eu.bronto.io` |
 | `BRONTO_API_KEY` | for tracing | Bronto ingest key |
-| `BRONTO_COLLECTION` / `BRONTO_DATASET` | no | Bronto routing labels (default `events-helper` / `agent-traces`) |
+| `BRONTO_COLLECTION` | no | Bronto collection (default `events-helper`) |
+| `BRONTO_DATASET` | no | Dataset for traces + runtime logs (`agent-runtime`) |
+| `BRONTO_DEPLOY_DATASET` | no | Dataset for deployment events (`agent-deployments`) |
 | `BRONTO_RECORD_IO` | no | `false` to keep prompts/outputs off the spans |
 | `BRONTO_DIRECT_LOGS` | no | `false` to stop the agent pushing logs directly to Bronto (set once a Vercel log drain is live) |
 
@@ -143,9 +145,12 @@ action prompts each user to sign in to Atlassian; issue-writing actions require 
 
 ### Observability (Bronto)
 
+Data is organized in the `events-helper` collection with two datasets: **`agent-runtime`** (traces +
+runtime logs, correlated by trace id) and **`agent-deployments`** (deployment events).
+
 **Traces** — set `BRONTO_OTLP_ENDPOINT` + `BRONTO_API_KEY` (and optionally collection/dataset). The
 agent exports a span tree per turn (`ai.eve.turn` → model calls → tool calls) over OTLP/HTTP
-protobuf. No further code needed — `agent/instrumentation.ts` is auto-discovered.
+protobuf into `agent-runtime`. No further code needed — `agent/instrumentation.ts` is auto-discovered.
 
 **Application logs** — the agent emits structured JSON logs (`agent/lib/log.ts`) stamped with the
 active `traceId`/`spanId`, so they correlate with the spans above. They print to Vercel's logs, and
