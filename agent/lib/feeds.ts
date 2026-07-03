@@ -6,6 +6,7 @@ import type {
   Source,
 } from "./types.js";
 import { getAllSources } from "./sources.js";
+import { log } from "./log.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -89,17 +90,29 @@ export async function queryCfps(query: CfpQuery = {}): Promise<Cfp[]> {
   const limit = query.limit ?? 50;
   const sources = await getAllSources("cfps");
 
-  const results = await Promise.allSettled(
+  const perSource = await Promise.all(
     sources.map(async (source) => {
-      const data = await fetchJson(source.url);
-      if (!Array.isArray(data)) return [] as Cfp[];
-      return data
-        .map((raw) => normalizeCfp(raw as RawCfp, source, now))
-        .filter((c): c is Cfp => c !== null);
+      try {
+        const data = await fetchJson(source.url);
+        if (!Array.isArray(data)) {
+          log.warn("cfp source returned non-array", { source: source.name, url: source.url });
+          return [] as Cfp[];
+        }
+        return data
+          .map((raw) => normalizeCfp(raw as RawCfp, source, now))
+          .filter((c): c is Cfp => c !== null);
+      } catch (err) {
+        log.warn("cfp source fetch failed", {
+          source: source.name,
+          url: source.url,
+          error: String(err),
+        });
+        return [] as Cfp[];
+      }
     }),
   );
 
-  let cfps = results.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
+  let cfps = perSource.flat();
 
   if (!query.includePast) {
     cfps = cfps.filter((c) => c.daysUntilDeadline !== null && c.daysUntilDeadline >= 0);
@@ -121,7 +134,17 @@ export async function queryCfps(query: CfpQuery = {}): Promise<Cfp[]> {
     return av - bv;
   });
 
-  return cfps.slice(0, limit);
+  const returned = cfps.slice(0, limit);
+  log.info("cfps queried", {
+    sources: sources.length,
+    matched: cfps.length,
+    returned: returned.length,
+    keywords: query.keywords,
+    locations: query.locations,
+    withinDays: query.withinDays,
+    includePast: query.includePast ?? false,
+  });
+  return returned;
 }
 
 /** Fetch, normalize, filter and sort events across every configured events source. */
@@ -130,17 +153,29 @@ export async function queryEvents(query: EventQuery = {}): Promise<EventItem[]> 
   const limit = query.limit ?? 50;
   const sources = await getAllSources("events");
 
-  const results = await Promise.allSettled(
+  const perSource = await Promise.all(
     sources.map(async (source) => {
-      const data = await fetchJson(source.url);
-      if (!Array.isArray(data)) return [] as EventItem[];
-      return data
-        .map((raw) => normalizeEvent(raw as RawEvent, source, now))
-        .filter((e): e is EventItem => e !== null);
+      try {
+        const data = await fetchJson(source.url);
+        if (!Array.isArray(data)) {
+          log.warn("events source returned non-array", { source: source.name, url: source.url });
+          return [] as EventItem[];
+        }
+        return data
+          .map((raw) => normalizeEvent(raw as RawEvent, source, now))
+          .filter((e): e is EventItem => e !== null);
+      } catch (err) {
+        log.warn("events source fetch failed", {
+          source: source.name,
+          url: source.url,
+          error: String(err),
+        });
+        return [] as EventItem[];
+      }
     }),
   );
 
-  let events = results.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
+  let events = perSource.flat();
 
   if (!query.includePast) {
     events = events.filter((e) => e.daysUntilStart !== null && e.daysUntilStart >= 0);
@@ -162,5 +197,15 @@ export async function queryEvents(query: EventQuery = {}): Promise<EventItem[]> 
     return av - bv;
   });
 
-  return events.slice(0, limit);
+  const returned = events.slice(0, limit);
+  log.info("events queried", {
+    sources: sources.length,
+    matched: events.length,
+    returned: returned.length,
+    keywords: query.keywords,
+    locations: query.locations,
+    withinDays: query.withinDays,
+    includePast: query.includePast ?? false,
+  });
+  return returned;
 }

@@ -142,9 +142,26 @@ action prompts each user to sign in to Atlassian; issue-writing actions require 
 
 ### Observability (Bronto)
 
-Set `BRONTO_OTLP_ENDPOINT` + `BRONTO_API_KEY` (and optionally collection/dataset). The agent
-exports a span tree per turn (`ai.eve.turn` → model calls → tool calls) over OTLP/HTTP protobuf.
-No further code needed — `agent/instrumentation.ts` is auto-discovered.
+**Traces** — set `BRONTO_OTLP_ENDPOINT` + `BRONTO_API_KEY` (and optionally collection/dataset). The
+agent exports a span tree per turn (`ai.eve.turn` → model calls → tool calls) over OTLP/HTTP
+protobuf. No further code needed — `agent/instrumentation.ts` is auto-discovered.
+
+**Application logs** — the agent emits structured JSON logs (`agent/lib/log.ts`) stamped with the
+active `traceId`/`spanId`, so they correlate with the spans above. They appear in Vercel's logs and,
+via a log drain, in Bronto next to the traces.
+
+**Deployment + platform logs (Vercel Drains)** — Vercel forwards runtime/build/deployment logs to
+Bronto through a **Log Drain** (requires a Vercel **Pro/Enterprise** plan). Bronto documents this as
+a custom-endpoint drain:
+
+1. In Bronto, create an API key with the Ingestion role.
+2. Vercel dashboard → **Team Settings → Drains → Add Drain → Logs → Custom Endpoint**.
+3. Endpoint: `https://ingestion.<region>.bronto.io/` (e.g. `https://ingestion.eu.bronto.io/`).
+4. Custom headers: `x-bronto-api-key: <key>`, `x-bronto-dataset: <name>`, `x-bronto-collection: <name>`.
+5. Create the drain; Vercel enriches logs from traced requests with `traceId`/`spanId` automatically.
+
+Independently, `npm run deploy` emits a **deployment log** straight to Bronto's `/v1/logs` with the
+commit and change summary, so there's always a durable "deployed" event even without the drain.
 
 ## Security notes
 

@@ -10,6 +10,7 @@ import {
   type PersonalInterests,
 } from "../lib/interests.js";
 import { callerId, isAdmin, isSuperAdmin, roleOf, rolesConfigured } from "../lib/roles.js";
+import { log } from "../lib/log.js";
 
 export default defineTool({
   description:
@@ -49,6 +50,7 @@ export default defineTool({
 
     if (input.action === "set_global") {
       if (!isAdmin(id)) {
+        log.warn("unauthorized set_global attempt", { by: id, role: roleOf(id) });
         throw new Error(
           "Only admins may set the global interest profile. Ask an admin, or configure EVENTS_HELPER_ADMIN_IDS.",
         );
@@ -56,6 +58,11 @@ export default defineTool({
       if (!input.global) throw new Error("'global' is required for action 'set_global'.");
       const next: GlobalInterests = input.global;
       await setGlobal(next);
+      log.info("global interests updated", {
+        by: id,
+        keywords: next.keywords.length,
+        locations: next.locations.length,
+      });
       return { updated: "global", global: next, rolesConfigured: rolesConfigured() };
     }
 
@@ -63,6 +70,11 @@ export default defineTool({
       if (!input.personal) throw new Error("'personal' is required for action 'set_personal'.");
       const next: PersonalInterests = input.personal;
       await setPersonal(id, next);
+      log.info("personal interests updated", {
+        by: id,
+        added: next.addKeywords.length + next.addLocations.length,
+        excluded: next.excludeKeywords.length + next.excludeLocations.length,
+      });
       const effective = resolveEffective(await getGlobal(), next);
       return { updated: "personal", you: id, isUser, personal: next, effective };
     }

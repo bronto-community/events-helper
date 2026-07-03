@@ -57,4 +57,4 @@ DEPLOY_TEXT=$(printf '🚀 *events-helper redeployed to production*\nCommit %s �
   "$( [ -n "$DIRTY" ] && printf '\n%s' "$DIRTY" )")
 
 echo "▶ notifying operator on Slack…"
-DEPLOY_TEXT="$DEPLOY_TEXT" node scripts/notify-deploy.mjs
+DEPLOY_TEXT="$DEPLOY_TEXT" DEPLOY_COMMIT="$HEAD_SHORT" DEPLOY_URL="${URL:-}" node scripts/notify-deploy.mjs

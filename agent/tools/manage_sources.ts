@@ -8,6 +8,8 @@ import {
   removeSource,
 } from "../lib/sources.js";
 import { backend } from "../lib/store.js";
+import { callerId } from "../lib/roles.js";
+import { log } from "../lib/log.js";
 
 export default defineTool({
   description:
@@ -28,7 +30,8 @@ export default defineTool({
       .describe("Required for 'add'."),
     id: z.string().optional().describe("Source id to remove. Required for 'remove'."),
   }),
-  async execute(input) {
+  async execute(input, ctx) {
+    const { id: actor } = callerId(ctx);
     switch (input.action) {
       case "list": {
         return {
@@ -40,11 +43,18 @@ export default defineTool({
       case "add": {
         if (!input.source) throw new Error("'source' is required for action 'add'.");
         const custom = await addSource(input.source);
+        log.info("feed source added", {
+          by: actor,
+          id: input.source.id,
+          kind: input.source.kind,
+          url: input.source.url,
+        });
         return { added: input.source, custom };
       }
       case "remove": {
         if (!input.id) throw new Error("'id' is required for action 'remove'.");
         const custom = await removeSource(input.id);
+        log.info("feed source removed", { by: actor, id: input.id });
         return { removed: input.id, custom };
       }
       default:

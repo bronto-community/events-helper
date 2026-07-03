@@ -228,6 +228,27 @@ roles/permissions question instead of guessing. It also returns a `mention` stri
 person so replies can tag people as clickable Slack @mentions (with the caveat that tagging pings
 them).
 
+## 14. Logs (trace-correlated) & deployment logs
+
+Extended observability beyond traces:
+
+- **Application logs** — `agent/lib/log.ts` emits structured JSON logs stamped with the active
+  OpenTelemetry `traceId`/`spanId` (from `@opentelemetry/api`, already a dependency), so every log
+  lines up with the spans already going to Bronto. Added meaningful, non-spammy log calls: feed
+  query summaries and per-source fetch failures (`lib/feeds.ts`), global/personal interest changes
+  and unauthorized `set_global` attempts (`manage_interests`), and source add/remove
+  (`manage_sources`). Verified locally that a turn emits e.g.
+  `{"level":"info","message":"cfps queried","traceId":"…","spanId":"…","matched":2,…}`.
+- **Deployment logs via Vercel Drains** — the answer to "does Vercel give me something": Vercel
+  **Drains** forward runtime/build/deployment logs (and traces) to an external sink; Bronto has a
+  documented custom-endpoint log drain (Team Settings → Drains → Logs → `https://ingestion.<region>.bronto.io/`
+  + `x-bronto-*` headers; **Pro/Enterprise**). Vercel auto-enriches traced-request logs with
+  `traceId`/`spanId`. Note: log drains use JSON/NDJSON (only *trace* drains are OTLP), but Bronto's
+  integration ingests them.
+- **Direct deploy log** — `scripts/notify-deploy.mjs` now also POSTs an OTLP-JSON log to Bronto's
+  `/v1/logs` on each `npm run deploy` (commit + change summary), validated with an HTTP 200, so a
+  durable deployment event lands in Bronto regardless of the drain/plan.
+
 ## Appendix: prompts/asks in order
 
 1. "Build a bot with CfP/event sources (developers.events), easy to add sources or hunt for them,
@@ -251,3 +272,6 @@ them).
     on redeploy with a summary of the changes."
 14. "The bot couldn't tell me who the admins/super admins are." → added the `roles` tool + taught
     the agent about the role model.
+15. "Tag (not just name) the users in the message." → `roles` returns Slack `<@Uxxxx>` mentions.
+16. "Improve observability: reasonable logs that fit the traces, and deployment logs — does Vercel
+    give me something?" → trace-correlated app logs + Bronto deploy log + Vercel Drains guidance.

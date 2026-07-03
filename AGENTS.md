@@ -41,6 +41,7 @@ agent/
     feeds.ts               # fetch + normalize (epoch→ISO) + filter + sort
     interests.ts           # global/personal/effective resolution
     roles.ts               # caller identity + admin / super-admin (operator) roles
+    log.ts                 # structured, trace-correlated logging (traceId/spanId from active span)
 ```
 
 Plus `scripts/deploy.sh` (deploy + operator notification), `scripts/notify-deploy.mjs` (Slack post
@@ -64,6 +65,10 @@ via Connect SDK), and `scripts/precommit.sh` (gitleaks + typecheck + docs-sync).
 - **Jira = Atlassian remote MCP** via Vercel Connect, **user-scoped** (each user signs in with
   their own Atlassian account). Writes gated on approval by a name-based policy.
 - **Slack + Jira run through Vercel Connect** — no bot tokens/signing secrets in code.
+- **Observability**: OTLP traces → Bronto (`instrumentation.ts`); structured app logs via `lib/log.ts`
+  carry the active `traceId`/`spanId` so they correlate with those spans. Use `log.info/warn/error`
+  in tools/lib for meaningful events (never log secrets). Full Vercel build/runtime logs reach Bronto
+  via a **Vercel Drain** (Pro+; see README). The deploy script also emits a deployment log to Bronto.
 
 ## Keep the docs in sync (required)
 
