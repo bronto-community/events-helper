@@ -67,8 +67,10 @@ via Connect SDK), and `scripts/precommit.sh` (gitleaks + typecheck + docs-sync).
 - **Slack + Jira run through Vercel Connect** — no bot tokens/signing secrets in code.
 - **Observability**: OTLP traces → Bronto (`instrumentation.ts`); structured app logs via `lib/log.ts`
   carry the active `traceId`/`spanId` so they correlate with those spans. Use `log.info/warn/error`
-  in tools/lib for meaningful events (never log secrets). Full Vercel build/runtime logs reach Bronto
-  via a **Vercel Drain** (Pro+; see README). The deploy script also emits a deployment log to Bronto.
+  in tools/lib for meaningful events (never log secrets). `lib/log.ts` also **pushes logs directly to
+  Bronto `/v1/logs`** (fire-and-forget) when Bronto env is set, so logs reach Bronto on a **free Vercel
+  plan** without a drain — set `BRONTO_DIRECT_LOGS=false` once a Vercel log **Drain** (Pro+; see README)
+  is live, to avoid duplicates. The deploy script also emits a deployment log to Bronto.
 
 ## Keep the docs in sync (required)
 
@@ -130,6 +132,7 @@ full env-var list and one-time Connect setup.
 | `BRONTO_API_KEY` | Bronto ingest key (`x-bronto-api-key`) |
 | `BRONTO_COLLECTION` / `BRONTO_DATASET` | Bronto routing labels (`events-helper` / `agent-traces`) |
 | `BRONTO_RECORD_IO` | `false` to redact prompts/outputs from spans |
+| `BRONTO_DIRECT_LOGS` | `false` to stop the agent pushing logs straight to Bronto (use once a Vercel log drain is live, to avoid dupes) |
 | `SLACK_DIGEST_CHANNEL_ID` | Target channel for the weekly digest (unset = digest no-ops) |
 | `EVENTS_HELPER_ADMIN_IDS` | Comma-separated principal ids allowed to set global settings |
 | `EVENTS_HELPER_SUPER_ADMIN_IDS` | Comma-separated principal ids for operator(s); superset of admin |

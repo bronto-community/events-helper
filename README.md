@@ -103,6 +103,7 @@ or with `vercel env add <NAME> production`.
 | `BRONTO_API_KEY` | for tracing | Bronto ingest key |
 | `BRONTO_COLLECTION` / `BRONTO_DATASET` | no | Bronto routing labels (default `events-helper` / `agent-traces`) |
 | `BRONTO_RECORD_IO` | no | `false` to keep prompts/outputs off the spans |
+| `BRONTO_DIRECT_LOGS` | no | `false` to stop the agent pushing logs directly to Bronto (set once a Vercel log drain is live) |
 
 ## One-time integration setup
 
@@ -147,12 +148,15 @@ agent exports a span tree per turn (`ai.eve.turn` → model calls → tool calls
 protobuf. No further code needed — `agent/instrumentation.ts` is auto-discovered.
 
 **Application logs** — the agent emits structured JSON logs (`agent/lib/log.ts`) stamped with the
-active `traceId`/`spanId`, so they correlate with the spans above. They appear in Vercel's logs and,
-via a log drain, in Bronto next to the traces.
+active `traceId`/`spanId`, so they correlate with the spans above. They print to Vercel's logs, and
+`lib/log.ts` **also pushes them straight to Bronto `/v1/logs`** (fire-and-forget) whenever the Bronto
+env vars are set — so app logs land in Bronto **on a free Vercel plan, no drain required**. Once you
+set up a Vercel log drain (below), set `BRONTO_DIRECT_LOGS=false` to avoid duplicate lines.
 
-**Deployment + platform logs (Vercel Drains)** — Vercel forwards runtime/build/deployment logs to
-Bronto through a **Log Drain** (requires a Vercel **Pro/Enterprise** plan). Bronto documents this as
-a custom-endpoint drain:
+**Deployment + platform logs (Vercel Drains)** — to capture *all* Vercel runtime/build/deployment
+logs (not just the agent's own), forward them to Bronto through a **Log Drain** (requires a Vercel
+**Pro/Enterprise** plan — the Bronto side just needs a free account + Ingestion API key). Bronto
+documents this as a custom-endpoint drain:
 
 1. In Bronto, create an API key with the Ingestion role.
 2. Vercel dashboard → **Team Settings → Drains → Add Drain → Logs → Custom Endpoint**.

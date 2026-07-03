@@ -248,6 +248,11 @@ Extended observability beyond traces:
 - **Direct deploy log** — `scripts/notify-deploy.mjs` now also POSTs an OTLP-JSON log to Bronto's
   `/v1/logs` on each `npm run deploy` (commit + change summary), validated with an HTTP 200, so a
   durable deployment event lands in Bronto regardless of the drain/plan.
+- **Free-plan app logs** — since Vercel log drains need a Pro plan, `lib/log.ts` also **pushes each
+  log straight to Bronto `/v1/logs`** (fire-and-forget OTLP-JSON, with native `traceId`/`spanId` for
+  correlation) whenever the Bronto env is present. This gets app logs into Bronto on a free Vercel
+  plan with no drain; a `BRONTO_DIRECT_LOGS=false` toggle disables it once a drain is live (to avoid
+  duplicates). Validated the payload returns HTTP 200 and a live turn ships correlated logs.
 
 ## Appendix: prompts/asks in order
 
