@@ -7,6 +7,7 @@ import type {
 } from "./types.js";
 import { getAllSources } from "./sources.js";
 import { log } from "./log.js";
+import { OCGROUPS_ENABLED, getOcgroupsEvents } from "./ocgroups.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -177,6 +178,11 @@ export async function queryEvents(query: EventQuery = {}): Promise<EventItem[]> 
 
   let events = perSource.flat();
 
+  // Open Community Groups (cached, single JSON pull) — merged with the feed events.
+  if (OCGROUPS_ENABLED) {
+    events = events.concat(await getOcgroupsEvents(now));
+  }
+
   if (!query.includePast) {
     events = events.filter((e) => e.daysUntilStart !== null && e.daysUntilStart >= 0);
   }
@@ -200,6 +206,7 @@ export async function queryEvents(query: EventQuery = {}): Promise<EventItem[]> 
   const returned = events.slice(0, limit);
   log.info("events queried", {
     sources: sources.length,
+    ocgroups: OCGROUPS_ENABLED,
     matched: events.length,
     returned: returned.length,
     keywords: query.keywords,

@@ -85,8 +85,9 @@ configure which channel; see the README.)
 
 ## Managing sources
 
-The bot reads from the [developers.events](https://developers.events) CfP and event feeds by
-default. Sources are **shared across the team**. If something's missing:
+The bot reads from the [developers.events](https://developers.events) CfP and event feeds, and
+from CNCF [Open Community Groups](https://ocgroups.dev) (community-group meetups), by default.
+Sources are **shared across the team**. If something's missing:
 
 > Can you find a feed for security conference CfPs and add it?
 

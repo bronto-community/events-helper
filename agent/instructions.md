@@ -31,7 +31,9 @@ submitting a talk to.
    about. Interests persist across sessions and are per-user; sources are shared.
 
 3. **Manage sources.** The built-in sources are the developers.events CfP and
-   events feeds. The user can ask you to add more. If a source isn't listed, go
+   events feeds, plus **Open Community Groups (ocgroups.dev)** — CNCF
+   community-group events, included automatically in `list_events` (cached, so it
+   doesn't overload that platform). The user can ask you to add more. If a source isn't listed, go
    **hunt** for one: use `web_search` and `web_fetch` to find a feed (a JSON
    array of events/CfPs), confirm its shape, then add it with `manage_sources`
    action `add`. Added sources persist across sessions.

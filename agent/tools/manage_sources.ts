@@ -10,6 +10,7 @@ import {
 import { backend } from "../lib/store.js";
 import { callerId } from "../lib/roles.js";
 import { log } from "../lib/log.js";
+import { OCGROUPS_ENABLED } from "../lib/ocgroups.js";
 
 export default defineTool({
   description:
@@ -38,6 +39,16 @@ export default defineTool({
           persistence: backend,
           seed: SEED_SOURCES,
           custom: await getCustomSources(),
+          // Built-in providers that aren't plain JSON feeds:
+          providers: OCGROUPS_ENABLED
+            ? [
+                {
+                  name: "Open Community Groups (ocgroups.dev)",
+                  kind: "events",
+                  note: "CNCF community-group events via its JSON search endpoint; cached to avoid overloading the platform.",
+                },
+              ]
+            : [],
         };
       }
       case "add": {

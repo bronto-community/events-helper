@@ -264,6 +264,20 @@ by the trace exporter and `lib/log.ts`); new `BRONTO_DEPLOY_DATASET` = `agent-de
 `scripts/notify-deploy.mjs`). Env updated across prod/preview/dev. (Old `agent-traces` data stays as
 history in Bronto.)
 
+## 16. Open Community Groups as a source
+
+Added CNCF [Open Community Groups](https://ocgroups.dev) as an events source. The site is an htmx app
+with "no API yet", but investigation found its Leaflet map is backed by a JSON endpoint —
+`GET /explore/events/search?limit=<=100&offset=N` → `{ events, total, bbox }` — so no HTML scraping
+is needed. Built `agent/lib/ocgroups.ts`: a single paginated JSON pull (page size capped at 100),
+normalized to our `EventItem` shape (starts_at/ends_at are Unix seconds; kind virtual/in-person/
+hybrid → location; group name/category → tags), and **cached in Blob with a TTL** (default 60 min,
+`OCGROUPS_CACHE_TTL_MIN`) so we hit the platform at most ~once/hour regardless of query volume —
+directly addressing "don't overwhelm the platform". Merged into `queryEvents` (behind
+`OCGROUPS_ENABLED`), surfaced in `manage_sources` list and the instructions. Verified: events flow
+into `list_events` (99 pulled, one refresh log, trace-correlated) alongside the developers.events
+feed. These are meetup-style events (no CfPs).
+
 ## Appendix: prompts/asks in order
 
 1. "Build a bot with CfP/event sources (developers.events), easy to add sources or hunt for them,
@@ -293,3 +307,5 @@ history in Bronto.)
 17. "Continue with the free-plan part." → agent pushes logs directly to Bronto (no drain needed).
 18. "Traces + runtime logs in one bucket, deployments in another (agent-traces was a bad name)." →
     split into `agent-runtime` and `agent-deployments` datasets.
+19. "Add ocgroups.dev as a source — no API yet; find a smart way to pull without overwhelming it." →
+    found its JSON search endpoint, single cached paginated pull, merged into events.

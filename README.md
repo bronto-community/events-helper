@@ -7,7 +7,8 @@ delivered to **Slack** on a weekly schedule.
 Built on the [eve framework](https://eve.dev) and deployed on Vercel.
 
 - **Live sources** — pulls CfPs and events from the [developers.events](https://developers.events)
-  feeds, and can hunt the web for more feeds and add them to a shared catalog.
+  feeds and CNCF [Open Community Groups](https://ocgroups.dev) (via its JSON search endpoint, cached
+  to avoid overloading it), and can hunt the web for more feeds and add them to a shared catalog.
 - **Interest matching** — a team-wide profile plus a personal overlay per user (add your own
   topics, exclude ones you don't care about).
 - **Jira** — turn a CfP into a tracked issue, then update/transition/comment on it.
@@ -106,6 +107,8 @@ or with `vercel env add <NAME> production`.
 | `BRONTO_DEPLOY_DATASET` | no | Dataset for deployment events (`agent-deployments`) |
 | `BRONTO_RECORD_IO` | no | `false` to keep prompts/outputs off the spans |
 | `BRONTO_DIRECT_LOGS` | no | `false` to stop the agent pushing logs directly to Bronto (set once a Vercel log drain is live) |
+| `OCGROUPS_ENABLED` | no | `false` to disable the Open Community Groups events provider |
+| `OCGROUPS_CACHE_TTL_MIN` | no | Minutes to cache ocgroups events (default 60) |
 
 ## One-time integration setup
 

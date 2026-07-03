@@ -38,7 +38,8 @@ agent/
     types.ts               # feed shapes + normalized Cfp/EventItem/Interests
     store.ts               # durable KV: private Vercel Blob, local-file fallback for dev
     sources.ts             # seed feeds + custom sources (shared catalog)
-    feeds.ts               # fetch + normalize (epoch→ISO) + filter + sort
+    feeds.ts               # fetch + normalize (epoch→ISO) + filter + sort (merges ocgroups)
+    ocgroups.ts            # Open Community Groups events via its JSON search endpoint, cached in Blob
     interests.ts           # global/personal/effective resolution
     roles.ts               # caller identity + admin / super-admin (operator) roles
     log.ts                 # structured, trace-correlated logging (traceId/spanId from active span)
@@ -141,5 +142,7 @@ full env-var list and one-time Connect setup.
 | `SLACK_DIGEST_CHANNEL_ID` | Target channel for the weekly digest (unset = digest no-ops) |
 | `EVENTS_HELPER_ADMIN_IDS` | Comma-separated principal ids allowed to set global settings |
 | `EVENTS_HELPER_SUPER_ADMIN_IDS` | Comma-separated principal ids for operator(s); superset of admin |
+| `OCGROUPS_ENABLED` | `false` to drop the Open Community Groups events provider |
+| `OCGROUPS_CACHE_TTL_MIN` | Minutes to cache ocgroups events (default 60) — bounds requests to that platform |
 | `EVENTS_HELPER_DEPLOY_NOTIFY_CHANNEL` | Slack channel/user id the deploy wrapper DMs on redeploy |
 | `SLACK_CONNECTOR` | Slack Connect connector uid (default `slack/bronto-events-helper`) |
