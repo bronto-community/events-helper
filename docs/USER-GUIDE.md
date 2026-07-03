@@ -60,7 +60,8 @@ anyone else.
   example, they get a Slack notification (with a change summary) whenever the bot is redeployed.
 
 Ask **"what's my id?"** and the bot tells you your principal id and role — that's what an operator
-adds to the admin / super-admin lists.
+adds to the admin / super-admin lists. You can also ask **"who are the admins?"** or **"who runs
+this bot?"** and the bot lists the super admins and admins (by name where it can resolve them).
 
 ## Tracking a CfP in Jira
 

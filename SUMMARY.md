@@ -217,6 +217,15 @@ the changes using the bot's Slack Connect token (fetched at runtime, never print
 now go through this wrapper so the operator is always notified; the raw `vercel deploy` still works
 but skips the notice.
 
+## 13. Roles visibility
+
+Configuring the roles surfaced a gap: the agent could report the *caller's* role but had no way to
+answer "who are the admins/super admins?" and improvised that it had no visibility. Added a `roles`
+tool (`agent/tools/roles.ts`) that lists the configured super admins and admins plus the caller's
+role, resolving `slack:<team>:<Uxxxx>` principals to display names via the Slack API (best-effort,
+needs `users:read`; falls back to ids). Instructions updated so the agent uses it for any
+roles/permissions question instead of guessing.
+
 ## Appendix: prompts/asks in order
 
 1. "Build a bot with CfP/event sources (developers.events), easy to add sources or hunt for them,
@@ -238,3 +247,5 @@ but skips the notice.
 13. "Configure admins — plus a role model: a list of users who can change global settings, and a
     super-admin/operator with extra privileges. First privilege: the operator is always notified
     on redeploy with a summary of the changes."
+14. "The bot couldn't tell me who the admins/super admins are." → added the `roles` tool + taught
+    the agent about the role model.

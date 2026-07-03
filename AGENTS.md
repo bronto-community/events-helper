@@ -32,6 +32,7 @@ agent/
     list_events.ts         # query events (upcoming, filters, sorted)
     manage_sources.ts      # list/add/remove shared feed sources
     manage_interests.ts    # get / set_global (admin) / set_personal — two-layer interests
+    roles.ts               # report who the super admins/admins are + caller's role (Slack names best-effort)
     format_cfp_issue.ts    # compose a Jira issue payload from a CfP (does not create it)
   lib/
     types.ts               # feed shapes + normalized Cfp/EventItem/Interests
