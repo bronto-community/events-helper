@@ -224,7 +224,9 @@ answer "who are the admins/super admins?" and improvised that it had no visibili
 tool (`agent/tools/roles.ts`) that lists the configured super admins and admins plus the caller's
 role, resolving `slack:<team>:<Uxxxx>` principals to display names via the Slack API (best-effort,
 needs `users:read`; falls back to ids). Instructions updated so the agent uses it for any
-roles/permissions question instead of guessing.
+roles/permissions question instead of guessing. It also returns a `mention` string (`<@Uxxxx>`) per
+person so replies can tag people as clickable Slack @mentions (with the caveat that tagging pings
+them).
 
 ## Appendix: prompts/asks in order
 

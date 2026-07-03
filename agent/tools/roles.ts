@@ -43,19 +43,27 @@ export default defineTool({
     "Report roles and permissions for this bot: who the super admins (operators) and admins are, " +
     "and the caller's own role. Use this for ANY question about admins, super admins, operators, " +
     "permissions, or 'who can change the global settings / who runs the bot'. Do not claim you lack " +
-    "visibility into roles — call this tool.",
+    "visibility into roles — call this tool. Each person includes a `mention` string (e.g. " +
+    "`<@U123>`); include it verbatim in Slack replies to tag/@-mention them.",
   inputSchema: z.object({}),
   async execute(_input, ctx) {
     const { id, isUser } = callerId(ctx);
     const supers = superAdminIds();
     const admins = adminIds();
     const names = await resolveNames([...new Set([...supers, ...admins, id])]);
-    const withNames = (ids: string[]) => ids.map((p) => ({ id: p, name: names.get(p) ?? null }));
+    const entry = (p: string) => {
+      const userId = p.split(":").pop() ?? "";
+      return {
+        id: p,
+        name: names.get(p) ?? null,
+        mention: userId.startsWith("U") ? `<@${userId}>` : null,
+      };
+    };
     return {
-      you: { id, isUser, role: roleOf(id), name: names.get(id) ?? null },
+      you: { ...entry(id), isUser, role: roleOf(id) },
       rolesConfigured: rolesConfigured(),
-      superAdmins: withNames(supers),
-      admins: withNames(admins),
+      superAdmins: supers.map(entry),
+      admins: admins.map(entry),
       note: rolesConfigured()
         ? "Super admins are also admins (a superset). Admins can change the global interest profile; super admins are the operators and receive deploy notifications."
         : "No roles are configured yet — everyone is treated as an admin (bootstrap mode).",
