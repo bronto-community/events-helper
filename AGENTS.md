@@ -42,8 +42,8 @@ agent/
     roles.ts               # caller identity + admin / super-admin (operator) roles
 ```
 
-Plus `scripts/deploy.sh` (deploy + operator notification) and `scripts/precommit.sh` (gitleaks +
-typecheck + docs-sync).
+Plus `scripts/deploy.sh` (deploy + operator notification), `scripts/notify-deploy.mjs` (Slack post
+via Connect SDK), and `scripts/precommit.sh` (gitleaks + typecheck + docs-sync).
 
 ## Key decisions (why it's built this way)
 
@@ -101,9 +101,13 @@ Deploy through the wrapper so the operator is notified with a change summary:
 npm run deploy   # scripts/deploy.sh: summary → deploy → Slack DM to the operator
 ```
 
-It diffs `git` from the last recorded deploy (`.last-deploy-sha`, gitignored), deploys, then DMs
-`EVENTS_HELPER_DEPLOY_NOTIFY_CHANNEL` via the bot's Connect token. The raw
-`VERCEL_USE_EXPERIMENTAL_FRAMEWORKS=1 vercel deploy --prod` still works but skips the notification.
+It diffs `git` from the last recorded deploy (`.last-deploy-sha`, gitignored), deploys, then posts
+the summary to `EVENTS_HELPER_DEPLOY_NOTIFY_CHANNEL` via `scripts/notify-deploy.mjs`. That helper
+uses the `@vercel/connect` **SDK** with the OIDC token from env (the CLI cannot mint the app-subject
+Slack token — only the runtime/OIDC can). Notification is **best-effort**: if `VERCEL_OIDC_TOKEN` is
+missing/expired (refresh with `vercel env pull`), the deploy still succeeds and the notice is
+skipped. The raw `VERCEL_USE_EXPERIMENTAL_FRAMEWORKS=1 vercel deploy --prod` also works but never
+notifies.
 
 Vercel project: `svrnm-otel/events-helper`. SSO deployment protection is **disabled** (required so
 Slack/Connect webhooks reach the app; app-layer auth still guards routes). See `README.md` for the

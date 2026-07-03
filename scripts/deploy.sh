@@ -12,9 +12,9 @@
 
 set -e
 cd "$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
-[ -f .env.local ] && . ./.env.local
+# Export .env.local so child processes (the notifier) see VERCEL_OIDC_TOKEN etc.
+if [ -f .env.local ]; then set -a; . ./.env.local; set +a; fi
 
-CONNECTOR="${SLACK_CONNECTOR:-slack/bronto-events-helper}"
 NOTIFY="${EVENTS_HELPER_DEPLOY_NOTIFY_CHANNEL:-}"
 
 # --- build the change summary from git --------------------------------------
@@ -48,38 +48,13 @@ URL=$(printf '%s\n' "$OUT" | grep -oE 'https://[a-z0-9-]+\.vercel\.app' | tail -
 printf '%s\n' "$HEAD_FULL" > .last-deploy-sha
 
 # --- notify the operator ----------------------------------------------------
-if [ -z "$NOTIFY" ]; then
-  echo "ℹ EVENTS_HELPER_DEPLOY_NOTIFY_CHANNEL not set — skipping operator notification."
-  exit 0
-fi
-
-echo "▶ notifying operator on Slack…"
-TOKEN=$(FF_CONNECT_ENABLED=1 vercel connect token "$CONNECTOR" --subject app 2>/dev/null \
-  | grep -vE '^[[:space:]]*$|Vercel CLI|^>|Retrieving|Fetching' | tail -1)
-if [ -z "$TOKEN" ]; then
-  echo "⚠ could not obtain a Slack token from Connect — skipping notification."
-  exit 0
-fi
-
-TEXT=$(printf '🚀 *events-helper redeployed to production*\nCommit %s — %s\n\n*Changes since last deploy:*\n%s\n\n_%s_%s' \
+# The Slack app token can only be minted by the project runtime/OIDC (not the
+# CLI user), so notify-deploy.mjs uses the @vercel/connect SDK with the OIDC
+# token from the environment. Best-effort: if the OIDC token is missing/expired
+# (refresh with `vercel env pull`), the deploy still succeeds and this is skipped.
+DEPLOY_TEXT=$(printf '🚀 *events-helper redeployed to production*\nCommit %s — %s\n\n*Changes since last deploy:*\n%s\n\n_%s_%s' \
   "$HEAD_SHORT" "${URL:-(url unknown)}" "$CHANGES" "$STAT" \
   "$( [ -n "$DIRTY" ] && printf '\n%s' "$DIRTY" )")
 
-SLACK_TOKEN="$TOKEN" NOTIFY="$NOTIFY" TEXT="$TEXT" python3 - <<'PY'
-import json, os, urllib.request
-payload = {"channel": os.environ["NOTIFY"], "text": os.environ["TEXT"]}
-req = urllib.request.Request(
-    "https://slack.com/api/chat.postMessage",
-    data=json.dumps(payload).encode(),
-    headers={
-        "Authorization": "Bearer " + os.environ["SLACK_TOKEN"],
-        "Content-Type": "application/json; charset=utf-8",
-    },
-)
-try:
-    resp = json.load(urllib.request.urlopen(req))
-except Exception as e:  # noqa: BLE001
-    print(f"⚠ Slack request failed: {e}")
-else:
-    print("✓ operator notified" if resp.get("ok") else f"⚠ Slack error: {resp.get('error')}")
-PY
+echo "▶ notifying operator on Slack…"
+DEPLOY_TEXT="$DEPLOY_TEXT" node scripts/notify-deploy.mjs
