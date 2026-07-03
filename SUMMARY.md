@@ -278,6 +278,18 @@ directly addressing "don't overwhelm the platform". Merged into `queryEvents` (b
 into `list_events` (99 pulled, one refresh log, trace-correlated) alongside the developers.events
 feed. These are meetup-style events (no CfPs).
 
+## 17. Source rescan → ops channel
+
+Added a source rescan that notifies the ops channel like deployments do. `agent/lib/scan.ts` pulls
+everything upcoming across all sources, diffs against the previous scan (a snapshot of CfP/event ids
+stored in Blob) to find what's new, and formats a summary (sources scanned, total CfPs/events,
+ocgroups count, and the new items). `agent/lib/slack-notify.ts` posts it to the ops channel
+(`EVENTS_HELPER_DEPLOY_NOTIFY_CHANNEL`) via the Connect app token — the same runtime mechanism the
+deploy notifier proved out. Two triggers (as requested): a daily schedule
+(`agent/schedules/source-scan.ts`, 07:00 UTC) and an on-demand `rescan_sources` tool. Every scan
+posts totals + what's new; the first scan records a baseline. Verified on demand: scanned 3 sources
+(178 CfPs, 893 events incl. 99 ocgroups), posted to the ops channel.
+
 ## Appendix: prompts/asks in order
 
 1. "Build a bot with CfP/event sources (developers.events), easy to add sources or hunt for them,
@@ -309,3 +321,5 @@ feed. These are meetup-style events (no CfPs).
     split into `agent-runtime` and `agent-deployments` datasets.
 19. "Add ocgroups.dev as a source — no API yet; find a smart way to pull without overwhelming it." →
     found its JSON search endpoint, single cached paginated pull, merged into events.
+20. "When rescanning the sources, post an update to the admin channel like the deployments." →
+    scheduled + on-demand source scan that posts totals + what's new to the ops channel.

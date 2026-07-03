@@ -27,12 +27,14 @@ agent/
     jira.ts                # Atlassian remote MCP, user-scoped Connect OAuth, writes gated on approval
   schedules/
     cfp-digest.ts          # weekly (Mon 08:00 UTC) CfP digest → Slack, uses GLOBAL interests
+    source-scan.ts         # daily (07:00 UTC) source rescan → ops channel summary
   tools/
     list_cfps.ts           # query CfPs (open, future deadlines, filters, sorted)
     list_events.ts         # query events (upcoming, filters, sorted)
     manage_sources.ts      # list/add/remove shared feed sources
     manage_interests.ts    # get / set_global (admin) / set_personal — two-layer interests
     roles.ts               # report who the super admins/admins are + caller's role (Slack names best-effort)
+    rescan_sources.ts      # on-demand source scan → posts totals + what's new to the ops channel
     format_cfp_issue.ts    # compose a Jira issue payload from a CfP (does not create it)
   lib/
     types.ts               # feed shapes + normalized Cfp/EventItem/Interests
@@ -40,6 +42,8 @@ agent/
     sources.ts             # seed feeds + custom sources (shared catalog)
     feeds.ts               # fetch + normalize (epoch→ISO) + filter + sort (merges ocgroups)
     ocgroups.ts            # Open Community Groups events via its JSON search endpoint, cached in Blob
+    scan.ts                # source rescan: totals + diff vs last snapshot (Blob) → summary message
+    slack-notify.ts        # post a message to a Slack channel via the Connect app token
     interests.ts           # global/personal/effective resolution
     roles.ts               # caller identity + admin / super-admin (operator) roles
     log.ts                 # structured, trace-correlated logging (traceId/spanId from active span)

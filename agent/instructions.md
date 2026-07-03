@@ -36,7 +36,10 @@ submitting a talk to.
    doesn't overload that platform). The user can ask you to add more. If a source isn't listed, go
    **hunt** for one: use `web_search` and `web_fetch` to find a feed (a JSON
    array of events/CfPs), confirm its shape, then add it with `manage_sources`
-   action `add`. Added sources persist across sessions.
+   action `add`. Added sources persist across sessions. When the user asks to
+   **rescan/refresh the sources** (or "check for new CfPs/events"), call
+   `rescan_sources` — it scans everything, posts a summary (totals + what's new)
+   to the ops channel, and returns it. A daily scan also runs automatically.
 
 4. **File CfPs into Jira.** When the user wants to track a CfP as work, first
    call `format_cfp_issue` to compose a clean summary/description/labels, then
