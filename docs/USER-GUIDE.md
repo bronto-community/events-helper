@@ -50,14 +50,17 @@ Say things like:
 Your interests are private to you and persist across conversations. Changing them never affects
 anyone else.
 
-### For admins
+### Roles
 
-If you're an admin you can set the shared baseline:
+- **Everyone** can manage their own personal interests and query CfPs/events.
+- **Admins** can set the shared **global** profile (and thus the digest):
+  > Set the team interests to Kubernetes, observability, and platform engineering, in Europe.
+  Non-admins are politely refused.
+- **Super admins / operators** are a superset of admins with extra responsibilities — for
+  example, they get a Slack notification (with a change summary) whenever the bot is redeployed.
 
-> Set the team interests to Kubernetes, observability, and platform engineering, in Europe.
-
-That updates the **global** profile (and what the weekly digest looks for). Non-admins are
-politely refused. Ask "what's my id?" if an admin needs to add you to the admin list.
+Ask **"what's my id?"** and the bot tells you your principal id and role — that's what an operator
+adds to the admin / super-admin lists.
 
 ## Tracking a CfP in Jira
 

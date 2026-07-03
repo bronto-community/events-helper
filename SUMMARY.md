@@ -201,6 +201,22 @@ standing instruction (in AGENTS.md and agent memory) to keep them continuously i
 substantive commit was made only after confirming no credentials were in tracked files (`.env.local`
 and the local Blob fallback are gitignored).
 
+## 12. Roles & deploy notifications
+
+A role hierarchy was introduced (`agent/lib/roles.ts`): **admins**
+(`EVENTS_HELPER_ADMIN_IDS`) may edit global settings; **super admins / operators**
+(`EVENTS_HELPER_SUPER_ADMIN_IDS`) are a superset with extra privileges. Identity is read from
+verified session auth; access is open until either list is configured, then enforced. The
+`manage_interests get` response now reports the caller's `role`, so anyone can find their principal
+id ("what's my id?") for an operator to add to the lists.
+
+The first operator privilege: **deploy notifications**. `scripts/deploy.sh` (wired as
+`npm run deploy`) diffs git since the last recorded deploy (`.last-deploy-sha`), runs the
+production deploy, and then DMs the operator (`EVENTS_HELPER_DEPLOY_NOTIFY_CHANNEL`) a summary of
+the changes using the bot's Slack Connect token (fetched at runtime, never printed). Deploys should
+now go through this wrapper so the operator is always notified; the raw `vercel deploy` still works
+but skips the notice.
+
 ## Appendix: prompts/asks in order
 
 1. "Build a bot with CfP/event sources (developers.events), easy to add sources or hunt for them,
@@ -219,3 +235,6 @@ and the local Blob fallback are gitignored).
 11. "Update AGENTS.md, write a README + end-user docs + this summary."
 12. "Keep the four docs continuously updated; add Apache-2.0 LICENSE; commit to git with no
     credentials + good pre-commit tooling (gitleaks etc.); redeploy."
+13. "Configure admins — plus a role model: a list of users who can change global settings, and a
+    super-admin/operator with extra privileges. First privilege: the operator is always notified
+    on redeploy with a summary of the changes."

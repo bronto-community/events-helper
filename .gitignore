@@ -10,3 +10,4 @@ dist
 .DS_Store
 *.tsbuildinfo
 .events-helper-store.json
+.last-deploy-sha

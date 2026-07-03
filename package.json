@@ -12,6 +12,7 @@
     "dev": "eve dev",
     "start": "eve start",
     "typecheck": "tsc",
+    "deploy": "sh scripts/deploy.sh",
     "precommit": "sh scripts/precommit.sh",
     "prepare": "husky"
   },

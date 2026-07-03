@@ -38,8 +38,12 @@ agent/
     store.ts               # durable KV: private Vercel Blob, local-file fallback for dev
     sources.ts             # seed feeds + custom sources (shared catalog)
     feeds.ts               # fetch + normalize (epoch→ISO) + filter + sort
-    interests.ts           # global/personal/effective resolution, caller id, admin check
+    interests.ts           # global/personal/effective resolution
+    roles.ts               # caller identity + admin / super-admin (operator) roles
 ```
+
+Plus `scripts/deploy.sh` (deploy + operator notification) and `scripts/precommit.sh` (gitleaks +
+typecheck + docs-sync).
 
 ## Key decisions (why it's built this way)
 
@@ -52,6 +56,10 @@ agent/
   PERSONAL overlay (add + exclude). `effective = (global ∪ personal.add) − personal.exclude`.
   Caller identity comes from `ctx.session.auth.current` (never model input). Admins gated by
   `EVENTS_HELPER_ADMIN_IDS` (open until set). **Sources are a shared team catalog.**
+- **Roles** (`lib/roles.ts`): **admins** (`EVENTS_HELPER_ADMIN_IDS`) may edit global settings;
+  **super admins / operators** (`EVENTS_HELPER_SUPER_ADMIN_IDS`) are a superset with extra
+  privileges. Open until either list is configured, then enforced. Identity comes from
+  `ctx.session.auth.current`, never the model.
 - **Jira = Atlassian remote MCP** via Vercel Connect, **user-scoped** (each user signs in with
   their own Atlassian account). Writes gated on approval by a name-based policy.
 - **Slack + Jira run through Vercel Connect** — no bot tokens/signing secrets in code.
@@ -87,9 +95,15 @@ changes as doc changes: update the tables in both `AGENTS.md` and `README.md`.
 Standing instruction from the owner: **redeploy to production automatically after changes that
 should go live** (no per-deploy confirmation needed).
 
+Deploy through the wrapper so the operator is notified with a change summary:
+
 ```bash
-VERCEL_USE_EXPERIMENTAL_FRAMEWORKS=1 vercel deploy --prod
+npm run deploy   # scripts/deploy.sh: summary → deploy → Slack DM to the operator
 ```
+
+It diffs `git` from the last recorded deploy (`.last-deploy-sha`, gitignored), deploys, then DMs
+`EVENTS_HELPER_DEPLOY_NOTIFY_CHANNEL` via the bot's Connect token. The raw
+`VERCEL_USE_EXPERIMENTAL_FRAMEWORKS=1 vercel deploy --prod` still works but skips the notification.
 
 Vercel project: `svrnm-otel/events-helper`. SSO deployment protection is **disabled** (required so
 Slack/Connect webhooks reach the app; app-layer auth still guards routes). See `README.md` for the
@@ -107,4 +121,7 @@ full env-var list and one-time Connect setup.
 | `BRONTO_COLLECTION` / `BRONTO_DATASET` | Bronto routing labels (`events-helper` / `agent-traces`) |
 | `BRONTO_RECORD_IO` | `false` to redact prompts/outputs from spans |
 | `SLACK_DIGEST_CHANNEL_ID` | Target channel for the weekly digest (unset = digest no-ops) |
-| `EVENTS_HELPER_ADMIN_IDS` | Comma-separated Slack principal ids allowed to set global interests |
+| `EVENTS_HELPER_ADMIN_IDS` | Comma-separated principal ids allowed to set global settings |
+| `EVENTS_HELPER_SUPER_ADMIN_IDS` | Comma-separated principal ids for operator(s); superset of admin |
+| `EVENTS_HELPER_DEPLOY_NOTIFY_CHANNEL` | Slack channel/user id the deploy wrapper DMs on redeploy |
+| `SLACK_CONNECTOR` | Slack Connect connector uid (default `slack/bronto-events-helper`) |

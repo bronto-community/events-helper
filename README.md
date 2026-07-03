@@ -64,12 +64,28 @@ npm run typecheck
 ## Deploy to Vercel
 
 ```bash
-vercel link                                            # link/create the project
+vercel link          # first time: link/create the project
+npm run deploy       # summarize changes → deploy → notify the operator on Slack
+```
+
+`npm run deploy` (`scripts/deploy.sh`) diffs git since the last deploy, runs the production
+deploy, and DMs the operator (`EVENTS_HELPER_DEPLOY_NOTIFY_CHANNEL`) a change summary via the
+bot's Slack token. To deploy without the notification, run the raw command:
+
+```bash
 VERCEL_USE_EXPERIMENTAL_FRAMEWORKS=1 vercel deploy --prod
 ```
 
 Set the environment variables below in the Vercel project (Settings → Environment Variables),
 or with `vercel env add <NAME> production`.
+
+### Roles
+
+- **Admins** (`EVENTS_HELPER_ADMIN_IDS`) can change the team-wide **global** interest profile.
+- **Super admins / operators** (`EVENTS_HELPER_SUPER_ADMIN_IDS`) are a superset with extra
+  privileges (e.g. they receive the deploy notifications).
+- Until either list is set, everyone is treated as an admin (bootstrap). Ask the bot
+  *"what's my id?"* to get the principal id to put in these lists.
 
 ### Environment variables
 
@@ -79,7 +95,10 @@ or with `vercel env add <NAME> production`.
 | `AI_GATEWAY_API_KEY` | yes¹ | AI Gateway credential (¹or use Vercel OIDC via `vercel link`) |
 | `BLOB_READ_WRITE_TOKEN` | recommended | Vercel Blob token for durable interests/sources |
 | `SLACK_DIGEST_CHANNEL_ID` | for digest | Slack channel id the weekly digest posts to |
-| `EVENTS_HELPER_ADMIN_IDS` | recommended | Comma-separated Slack principal ids allowed to set **global** interests |
+| `EVENTS_HELPER_ADMIN_IDS` | recommended | Comma-separated principal ids allowed to set **global** settings |
+| `EVENTS_HELPER_SUPER_ADMIN_IDS` | recommended | Operator(s); superset of admin, with extra privileges |
+| `EVENTS_HELPER_DEPLOY_NOTIFY_CHANNEL` | for deploy notices | Slack channel id (`Cxxxx`) or operator user id (`Uxxxx`) DM'd on each `npm run deploy` |
+| `SLACK_CONNECTOR` | no | Slack Connect connector uid (default `slack/bronto-events-helper`) |
 | `BRONTO_OTLP_ENDPOINT` | for tracing | e.g. `https://ingestion.eu.bronto.io` |
 | `BRONTO_API_KEY` | for tracing | Bronto ingest key |
 | `BRONTO_COLLECTION` / `BRONTO_DATASET` | no | Bronto routing labels (default `events-helper` / `agent-traces`) |
@@ -140,6 +159,7 @@ No further code needed — `agent/instrumentation.ts` is auto-discovered.
 | Command | What it does |
 | --- | --- |
 | `npm run typecheck` | `tsc` — type-check the whole agent |
+| `npm run deploy` | Deploy to prod + notify the operator on Slack with a change summary |
 | `npm exec -- eve dev` | Interactive dev REPL |
 | `npm exec -- eve dev --no-ui` | Headless dev server (HTTP API) |
 | `npm run build` / `npm start` | `eve build` / `eve start` |

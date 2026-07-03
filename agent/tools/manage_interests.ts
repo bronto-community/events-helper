@@ -1,17 +1,15 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 import {
-  adminListConfigured,
-  callerId,
   getGlobal,
   getPersonal,
-  isAdmin,
   resolveEffective,
   setGlobal,
   setPersonal,
   type GlobalInterests,
   type PersonalInterests,
 } from "../lib/interests.js";
+import { callerId, isAdmin, isSuperAdmin, roleOf, rolesConfigured } from "../lib/roles.js";
 
 export default defineTool({
   description:
@@ -58,7 +56,7 @@ export default defineTool({
       if (!input.global) throw new Error("'global' is required for action 'set_global'.");
       const next: GlobalInterests = input.global;
       await setGlobal(next);
-      return { updated: "global", global: next, adminListConfigured: adminListConfigured() };
+      return { updated: "global", global: next, rolesConfigured: rolesConfigured() };
     }
 
     if (input.action === "set_personal") {
@@ -75,8 +73,10 @@ export default defineTool({
     return {
       you: id,
       isUser,
+      role: roleOf(id),
       isAdmin: isAdmin(id),
-      adminListConfigured: adminListConfigured(),
+      isSuperAdmin: isSuperAdmin(id),
+      rolesConfigured: rolesConfigured(),
       global,
       personal,
       effective,

@@ -1,4 +1,3 @@
-import type { SessionContext } from "eve/context";
 import * as store from "./store.js";
 
 // Two layers of interest, resolved into an "effective" set per user:
@@ -41,33 +40,6 @@ export const EMPTY_PERSONAL: PersonalInterests = {
   excludeLocations: [],
   notes: "",
 };
-
-/** The verified caller identity for scoping personal data. Never trust model input for this. */
-export function callerId(ctx: SessionContext): { id: string; isUser: boolean } {
-  const current = ctx.session.auth.current;
-  if (current?.principalType === "user" && current.principalId) {
-    return { id: current.principalId, isUser: true };
-  }
-  // Non-user principals (the scheduled digest's app principal, local dev, etc.).
-  return { id: current?.principalId ?? "anonymous", isUser: false };
-}
-
-function adminIds(): string[] {
-  return (process.env.EVENTS_HELPER_ADMIN_IDS ?? "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-export function adminListConfigured(): boolean {
-  return adminIds().length > 0;
-}
-
-/** Admins may edit the global profile. Until an admin list is configured, this is open. */
-export function isAdmin(id: string): boolean {
-  const admins = adminIds();
-  return admins.length === 0 || admins.includes(id);
-}
 
 export function getGlobal(): Promise<GlobalInterests> {
   return store.read<GlobalInterests>(GLOBAL_KEY, EMPTY_GLOBAL);
