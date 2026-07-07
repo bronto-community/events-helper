@@ -94,6 +94,9 @@ or with `vercel env add <NAME> production`.
 | Var | Required | Purpose |
 | --- | --- | --- |
 | `EVE_MODEL` | no | Model id, default `anthropic/claude-sonnet-5` |
+| `EVE_MAX_INPUT_TOKENS` | no | Per-session input-token ceiling (default 10M) |
+| `EVE_MAX_OUTPUT_TOKENS` | no | Per-session output-token ceiling (default 1M) |
+| `EVE_TOKEN_WARN_PCT` | no | Budget % that triggers the ops-channel token warning (default 80) |
 | `AI_GATEWAY_API_KEY` | yes¹ | AI Gateway credential (¹or use Vercel OIDC via `vercel link`) |
 | `BLOB_READ_WRITE_TOKEN` | recommended | Vercel Blob token for durable interests/sources |
 | `SLACK_DIGEST_CHANNEL_ID` | for digest | Slack channel id the weekly digest posts to |
@@ -179,6 +182,11 @@ documents this as a custom-endpoint drain:
 
 Independently, `npm run deploy` emits a **deployment log** straight to Bronto's `/v1/logs` with the
 commit and change summary, so there's always a durable "deployed" event even without the drain.
+
+**Token usage** — each session has env-tunable token ceilings (`EVE_MAX_INPUT_TOKENS` /
+`EVE_MAX_OUTPUT_TOKENS`); a hook logs running per-session usage to Bronto and alerts the ops channel
+at `EVE_TOKEN_WARN_PCT` (and on token-limit/rate-limit failures), and the agent proactively warns a
+user when a conversation is getting large.
 
 ## Security notes
 

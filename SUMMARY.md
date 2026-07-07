@@ -314,6 +314,18 @@ Prereqid Slack setup for full function: the bot needs `im:history` + the `messag
 subscription (so DM replies reach the agent) and **Interactivity enabled** pointing at
 `/eve/v1/slack` (so button clicks reach `onInteraction`).
 
+## 19. Token-usage awareness
+
+Finished the paused token-usage feature. `agent/lib/usage.ts` holds per-session usage state +
+env-tunable ceilings (`EVE_MAX_INPUT_TOKENS`/`EVE_MAX_OUTPUT_TOKENS`, default 10M/1M) wired onto
+`defineAgent({ limits })` so the next call after a ceiling fails with `SESSION_TOKEN_LIMIT_REACHED`.
+`agent/hooks/usage.ts` accumulates `step.completed` usage, logs running totals (trace-correlated),
+alerts the ops channel once at `EVE_TOKEN_WARN_PCT` (default 80) and on token-limit/rate-limit
+`turn.failed`, and counts compactions. `agent/instructions/usage.ts` (dynamic, coexisting with
+`instructions.md`) injects a budget line each turn so the agent proactively warns the user when a
+conversation is getting large. Verified locally: the hook logged accumulating `token usage`
+(steps 1→3, input 10k→32k), trace-correlated, no errors.
+
 ## Appendix: prompts/asks in order
 
 1. "Build a bot with CfP/event sources (developers.events), easy to add sources or hunt for them,
@@ -351,3 +363,5 @@ subscription (so DM replies reach the agent) and **Interactivity enabled** point
     forbids aggregation, scraping prohibited) → decided to skip.
 22. "Suggest additional features" → catalog in the plan; user chose per-user alerts + interactive
     cards, built as one opt-in interactive-card DM capability.
+23. "Make the agent aware of token usage + limits it's hitting." → per-session limits + usage hook
+    (log + ops alerts) + dynamic budget-awareness instruction.

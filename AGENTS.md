@@ -17,9 +17,13 @@ plus any feeds the agent discovers by web search.
 
 ```
 agent/
-  agent.ts                 # model = process.env.EVE_MODEL || "anthropic/claude-sonnet-5"
+  agent.ts                 # model = env EVE_MODEL; per-session token limits (lib/usage)
   instructions.md          # always-on system prompt (purpose + how to use the tools)
+  instructions/
+    usage.ts               # dynamic: injects token-budget status so the agent self-warns
   instrumentation.ts       # OpenTelemetry → Bronto (OTLP/proto traces), env-driven
+  hooks/
+    usage.ts               # observe token usage: accumulate + log + ops alert on threshold/limit
   channels/
     eve.ts                 # built-in HTTP channel (placeholderAuth — see below)
     slack.ts               # Slack via Vercel Connect (connector slack/bronto-events-helper)
@@ -44,6 +48,7 @@ agent/
     feeds.ts               # fetch + normalize (epoch→ISO) + filter + sort (merges ocgroups)
     ocgroups.ts            # Open Community Groups events via its JSON search endpoint, cached in Blob
     scan.ts                # source rescan: totals + diff vs last snapshot (Blob) → summary message
+    usage.ts               # per-session token-usage state + limits/threshold (env-tunable)
     alerts.ts              # per-user opt-in CfP alert ledger + computeUserAlerts (new / closing-soon)
     cards.ts               # Slack Block Kit builders for interactive CfP alert cards
     slack-notify.ts        # post text or Block Kit to a Slack channel/DM via the Connect app token
@@ -66,6 +71,13 @@ via Connect SDK), and `scripts/precommit.sh` (gitleaks + typecheck + docs-sync).
   PERSONAL overlay (add + exclude). `effective = (global ∪ personal.add) − personal.exclude`.
   Caller identity comes from `ctx.session.auth.current` (never model input). Admins gated by
   `EVENTS_HELPER_ADMIN_IDS` (open until set). **Sources are a shared team catalog.**
+- **Token-usage awareness** (`lib/usage.ts` + `hooks/usage.ts` + `instructions/usage.ts`).
+  Per-session ceilings set on `defineAgent({ limits })` (env-tunable) fail the next call with
+  `SESSION_TOKEN_LIMIT_REACHED`. The hook accumulates `step.completed` usage into durable session
+  state, logs running totals (trace-correlated), alerts the ops channel once at `EVE_TOKEN_WARN_PCT`
+  and on token-limit/rate-limit `turn.failed`, and counts compactions. Dynamic instructions inject a
+  budget line each turn so the agent proactively warns the user. Model usage per turn is also on the
+  Bronto spans + Vercel Agent Runs (`$eve.*` tags) — this adds session-cumulative awareness + limits.
 - **Per-user CfP alerts are opt-in** (`lib/alerts.ts`). A daily schedule DMs each **subscribed**
   user (ledger `events-helper/alerts/user/<principalId>.json`, subscription flag lives there, not in
   the interest profile) the CfPs matching their effective interests that are newly matched or
@@ -144,6 +156,9 @@ full env-var list and one-time Connect setup.
 | Var | Purpose |
 | --- | --- |
 | `EVE_MODEL` | Model id (default `anthropic/claude-sonnet-5`) |
+| `EVE_MAX_INPUT_TOKENS` | Per-session input-token ceiling (default 10,000,000) |
+| `EVE_MAX_OUTPUT_TOKENS` | Per-session output-token ceiling (default 1,000,000) |
+| `EVE_TOKEN_WARN_PCT` | % of budget that triggers the ops-channel token warning (default 80) |
 | `AI_GATEWAY_API_KEY` | AI Gateway credential (or use Vercel OIDC via `eve link`) |
 | `BLOB_READ_WRITE_TOKEN` | Vercel Blob store token (persistence; else local-file fallback) |
 | `BRONTO_OTLP_ENDPOINT` | Bronto OTLP base URL, e.g. `https://ingestion.eu.bronto.io` |
