@@ -1,14 +1,10 @@
 import { getToken } from "@vercel/connect";
 
-// Post a message to a Slack channel as the bot, using the Vercel Connect app
-// token (works in the deployed runtime and locally when VERCEL_OIDC_TOKEN is
-// present). Used for operator/ops-channel notifications (source scans, etc.),
-// the same channel the deploy notifier posts to. Best-effort: returns a result
-// rather than throwing.
-export async function postToChannel(
-  channelId: string,
-  text: string,
-): Promise<{ ok: boolean; error?: string }> {
+// Post to Slack as the bot, using the Vercel Connect app token (works in the
+// deployed runtime and locally when VERCEL_OIDC_TOKEN is present). Best-effort:
+// returns a result rather than throwing.
+
+async function slackPost(body: Record<string, unknown>): Promise<{ ok: boolean; ts?: string; error?: string }> {
   try {
     const token = await getToken(process.env.SLACK_CONNECTOR || "slack/bronto-events-helper", {
       subject: { type: "app" },
@@ -19,11 +15,25 @@ export async function postToChannel(
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json; charset=utf-8",
       },
-      body: JSON.stringify({ channel: channelId, text }),
+      body: JSON.stringify(body),
     });
-    const body = (await res.json()) as { ok: boolean; error?: string };
-    return { ok: Boolean(body.ok), error: body.ok ? undefined : body.error };
+    const json = (await res.json()) as { ok: boolean; ts?: string; error?: string };
+    return { ok: Boolean(json.ok), ts: json.ts, error: json.ok ? undefined : json.error };
   } catch (err) {
     return { ok: false, error: String(err) };
   }
+}
+
+/** Post a plain-text message to a Slack channel or user id (DM). */
+export function postToChannel(channelId: string, text: string): Promise<{ ok: boolean; error?: string }> {
+  return slackPost({ channel: channelId, text });
+}
+
+/** Post a Block Kit message (with a plain-text fallback) to a channel or user id (DM). */
+export function postBlocks(
+  channelId: string,
+  blocks: unknown[],
+  fallbackText: string,
+): Promise<{ ok: boolean; ts?: string; error?: string }> {
+  return slackPost({ channel: channelId, blocks, text: fallbackText });
 }

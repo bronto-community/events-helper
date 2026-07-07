@@ -290,6 +290,30 @@ deploy notifier proved out. Two triggers (as requested): a daily schedule
 posts totals + what's new; the first scan records a baseline. Verified on demand: scanned 3 sources
 (178 CfPs, 893 events incl. 99 ocgroups), posted to the ops channel.
 
+## 18. Per-user CfP alerts as interactive Slack cards (opt-in)
+
+Delivered the two chosen backlog features as one capability. `agent/lib/alerts.ts` holds a per-user
+ledger (`events-helper/alerts/user/<principalId>.json`) with the **subscription flag** (kept out of
+the interest profile so interest edits don't clobber it) plus notified/reminded/dismissed/snoozed
+ids; `computeUserAlerts` returns the CfPs matching a user's effective interests that are newly
+matched (within `ALERT_WINDOW_DAYS`) or newly closing-soon (`ALERT_CLOSING_DAYS`). A daily schedule
+`agent/schedules/cfp-alerts.ts` enumerates subscribers (new `store.listKeys` over Blob), DMs each the
+CfPs as **interactive Block Kit cards** (`agent/lib/cards.ts`, raw blocks for full control of button
+`action_id`/`value`) via `postBlocks` (`agent/lib/slack-notify.ts`). Buttons: Submit (link),
+Not-interested (`cfp_dismiss`), Snooze (`cfp_snooze`) — handled by the Slack channel's new
+`onInteraction` (side-effects + `chat.update`; a button can't start a turn, so filing to Jira is a
+DM reply). Opt-in via `manage_interests` `subscribe`/`unsubscribe`.
+
+Verified: subscribe writes a ledger; the dispatched schedule enumerated `subscribers:1`; a standalone
+run of `computeUserAlerts` for a "kubernetes" user returned matches and built valid cards
+(`section,actions` with the three action_ids, ref encode/decode round-trip). Confirmed Vercel Blob
+accepts `:` in pathnames (per-user keys embed the `slack:team:U` principal), so no key sanitizing
+needed.
+
+Prereqid Slack setup for full function: the bot needs `im:history` + the `message.im` event
+subscription (so DM replies reach the agent) and **Interactivity enabled** pointing at
+`/eve/v1/slack` (so button clicks reach `onInteraction`).
+
 ## Appendix: prompts/asks in order
 
 1. "Build a bot with CfP/event sources (developers.events), easy to add sources or hunt for them,
@@ -323,3 +347,7 @@ posts totals + what's new; the first scan records a baseline. Verified on demand
     found its JSON search endpoint, single cached paginated pull, merged into events.
 20. "When rescanning the sources, post an update to the admin channel like the deployments." →
     scheduled + on-demand source scan that posts totals + what's new to the ops channel.
+21. "Add meetup.com as a source." → researched; it's a walled garden (Pro-only API, license
+    forbids aggregation, scraping prohibited) → decided to skip.
+22. "Suggest additional features" → catalog in the plan; user chose per-user alerts + interactive
+    cards, built as one opt-in interactive-card DM capability.

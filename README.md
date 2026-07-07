@@ -12,7 +12,8 @@ Built on the [eve framework](https://eve.dev) and deployed on Vercel.
 - **Interest matching** — a team-wide profile plus a personal overlay per user (add your own
   topics, exclude ones you don't care about).
 - **Jira** — turn a CfP into a tracked issue, then update/transition/comment on it.
-- **Slack** — chat with the bot; get a weekly digest of upcoming CfPs.
+- **Slack** — chat with the bot; get a weekly team digest, plus opt-in **daily personal CfP
+  alerts** as interactive cards (Submit / Not interested / Snooze; file-to-Jira by replying).
 - **Observability** — OpenTelemetry traces exported to [Bronto](https://bronto.io).
 
 > **Using the bot?** See the [User Guide](docs/USER-GUIDE.md). This README is for installing
@@ -109,6 +110,10 @@ or with `vercel env add <NAME> production`.
 | `BRONTO_DIRECT_LOGS` | no | `false` to stop the agent pushing logs directly to Bronto (set once a Vercel log drain is live) |
 | `OCGROUPS_ENABLED` | no | `false` to disable the Open Community Groups events provider |
 | `OCGROUPS_CACHE_TTL_MIN` | no | Minutes to cache ocgroups events (default 60) |
+| `EVENTS_HELPER_ALERTS_ENABLED` | no | `false` to disable daily per-user CfP alert DMs |
+| `EVENTS_HELPER_ALERT_WINDOW_DAYS` | no | Horizon for "new" matching CfPs (default 90) |
+| `EVENTS_HELPER_ALERT_CLOSING_DAYS` | no | "Closing soon" nudge threshold in days (default 7) |
+| `EVENTS_HELPER_SNOOZE_DAYS` | no | Snooze duration in days (default 30) |
 
 ## One-time integration setup
 

@@ -83,6 +83,19 @@ Once a week the bot posts a digest of upcoming CfPs that match the **global** in
 designated Slack channel — a shared team heads-up. If nothing matches, it stays quiet. (Admins
 configure which channel; see the README.)
 
+## Personal CfP alerts (opt-in)
+
+Want your own daily heads-up? Tell the bot **"subscribe me to CfP alerts"** and it'll DM you each
+day with the CfPs matching *your* interests that are newly found or closing soon — one interactive
+card each. On every card:
+
+- **Submit ↗** — opens the CfP submission page.
+- **Not interested** — you won't be alerted about that CfP again.
+- **Snooze** — mutes that CfP for a while.
+
+To file one as a Jira issue, just **reply in the DM** (e.g. "file the KubeCon CfP to Jira"). Say
+**"unsubscribe from CfP alerts"** to stop the daily DMs.
+
 ## Managing sources
 
 The bot reads from the [developers.events](https://developers.events) CfP and event feeds, and

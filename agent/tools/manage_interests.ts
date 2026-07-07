@@ -10,6 +10,7 @@ import {
   type PersonalInterests,
 } from "../lib/interests.js";
 import { callerId, isAdmin, isSuperAdmin, roleOf, rolesConfigured } from "../lib/roles.js";
+import { isSubscribed, setSubscribed } from "../lib/alerts.js";
 import { log } from "../lib/log.js";
 
 export default defineTool({
@@ -23,9 +24,11 @@ export default defineTool({
     "plus the raw global and personal layers and the caller's id.\n" +
     "- 'set_global': replace the global profile (admins only). Use when an admin sets team interests.\n" +
     "- 'set_personal': replace the CALLER's overlay. To append, call 'get' first, merge, then set the " +
-    "full overlay back. Put excluded global topics in excludeKeywords/excludeLocations.",
+    "full overlay back. Put excluded global topics in excludeKeywords/excludeLocations.\n" +
+    "- 'subscribe' / 'unsubscribe': opt the caller in/out of the daily personal CfP alert DMs " +
+    "(matched to their effective interests). Use when the user asks to (un)subscribe to CfP alerts/reminders.",
   inputSchema: z.object({
-    action: z.enum(["get", "set_global", "set_personal"]),
+    action: z.enum(["get", "set_global", "set_personal", "subscribe", "unsubscribe"]),
     global: z
       .object({
         keywords: z.array(z.string()).default([]),
@@ -79,8 +82,19 @@ export default defineTool({
       return { updated: "personal", you: id, isUser, personal: next, effective };
     }
 
+    if (input.action === "subscribe" || input.action === "unsubscribe") {
+      const subscribed = input.action === "subscribe";
+      await setSubscribed(id, subscribed);
+      log.info("alert subscription changed", { by: id, subscribed });
+      return { you: id, subscribed };
+    }
+
     // get
-    const [global, personal] = await Promise.all([getGlobal(), getPersonal(id)]);
+    const [global, personal, subscribed] = await Promise.all([
+      getGlobal(),
+      getPersonal(id),
+      isSubscribed(id),
+    ]);
     const effective = resolveEffective(global, personal);
     return {
       you: id,
@@ -89,6 +103,7 @@ export default defineTool({
       isAdmin: isAdmin(id),
       isSuperAdmin: isSuperAdmin(id),
       rolesConfigured: rolesConfigured(),
+      subscribedToAlerts: subscribed,
       global,
       personal,
       effective,
