@@ -326,6 +326,18 @@ alerts the ops channel once at `EVE_TOKEN_WARN_PCT` (default 80) and on token-li
 conversation is getting large. Verified locally: the hook logged accumulating `token usage`
 (steps 1→3, input 10k→32k), trace-correlated, no errors.
 
+## 20. Prepared for public release (bronto-community, Apache-2.0)
+
+Readied the repo for GitHub `bronto-community` under Apache-2.0. Security-audited the full git
+history with gitleaks (13 commits, no leaks) and confirmed no secrets/real infra ids in tracked
+files. Genericized the Bronto-specific Vercel Connect connector UIDs to env-driven
+(`SLACK_CONNECTOR`/`JIRA_CONNECTOR`, defaults retained) and scrubbed a connector id from a comment.
+Added `NOTICE` (Copyright 2026 Bronto + third-party attributions), `CONTRIBUTING.md`, `SECURITY.md`
+(security@bronto.io + GitHub advisories), `CODE_OF_CONDUCT.md` (Contributor Covenant), a GitHub
+Actions CI workflow (type-check + gitleaks), README license/CI badges + community disclaimer, and
+package.json metadata (repository/description/keywords, v0.1.0). `docs/blog-*` is gitignored so the
+blog draft stays private.
+
 ## Appendix: prompts/asks in order
 
 1. "Build a bot with CfP/event sources (developers.events), easy to add sources or hunt for them,

@@ -1,8 +1,29 @@
 {
   "name": "events-helper",
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "description": "A durable eve AI agent that tracks tech-conference CfPs and events, matches them to team/personal interests, files them into Jira, and delivers digests and alerts to Slack.",
   "type": "module",
   "license": "Apache-2.0",
+  "author": "Bronto (https://bronto.io)",
+  "homepage": "https://github.com/bronto-community/events-helper#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bronto-community/events-helper.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bronto-community/events-helper/issues"
+  },
+  "keywords": [
+    "eve",
+    "ai-agent",
+    "call-for-papers",
+    "cfp",
+    "conferences",
+    "events",
+    "slack",
+    "jira",
+    "vercel"
+  ],
   "imports": {
     "#*": "./agent/*",
     "#evals/*": "./evals/*"

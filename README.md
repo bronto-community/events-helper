@@ -1,10 +1,14 @@
 # events-helper
 
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![CI](https://github.com/bronto-community/events-helper/actions/workflows/ci.yml/badge.svg)](https://github.com/bronto-community/events-helper/actions/workflows/ci.yml)
+
 A durable AI agent that helps a team stay on top of **tech-conference Call for Papers
 (CfPs)** and events — matched to what each person cares about, filed into **Jira**, and
 delivered to **Slack** on a weekly schedule.
 
-Built on the [eve framework](https://eve.dev) and deployed on Vercel.
+Built on the [eve framework](https://eve.dev) and deployed on Vercel. A community project from
+[Bronto](https://bronto.io); not an official product of, or endorsed by, the integrated services.
 
 - **Live sources** — pulls CfPs and events from the [developers.events](https://developers.events)
   feeds and CNCF [Open Community Groups](https://ocgroups.dev) (via its JSON search endpoint, cached

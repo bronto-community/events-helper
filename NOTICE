@@ -1,0 +1,24 @@
+events-helper
+Copyright 2026 Bronto
+
+This product includes software developed at Bronto (https://bronto.io).
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+this project except in compliance with the License. You may obtain a copy of the
+License at http://www.apache.org/licenses/LICENSE-2.0
+
+---
+
+This project is built on and interoperates with third-party services and
+software, each under its own license and terms:
+
+- eve framework (https://eve.dev)
+- Vercel platform, Vercel Connect, Vercel Blob, Vercel AI Gateway (https://vercel.com)
+- Conference/CfP data from developers.events (https://developers.events)
+- Community-group events from Open Community Groups (https://ocgroups.dev)
+- Atlassian Jira via the Atlassian remote MCP server (https://atlassian.com)
+- Slack (https://slack.com)
+- Bronto observability (https://bronto.io)
+
+These integrations are optional and configured by the deployer. This project is
+not affiliated with or endorsed by the above providers.

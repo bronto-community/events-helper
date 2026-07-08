@@ -6,10 +6,11 @@ import { defineMcpClientConnection } from "eve/connections";
 // The model discovers them via `connection_search` and calls them as
 // `jira__<tool>` (e.g. jira__createJiraIssue, jira__transitionJiraIssue).
 //
-// Auth runs through Vercel Connect (user-scoped OAuth). Connector provisioned
-// via `vercel connect create mcp.atlassian.com --name atlassian`, UID
-// "mcp.atlassian.com/atlassian" (attached to this project for prod/preview/dev).
-// The first Jira tool call emits an OAuth link for the user to sign in.
+// Auth runs through Vercel Connect (user-scoped OAuth). Provision a connector
+// with `vercel connect create mcp.atlassian.com --name atlassian` and set
+// JIRA_CONNECTOR to its UID. The first Jira tool call emits an OAuth link for
+// the user to sign in.
+const JIRA_CONNECTOR = process.env.JIRA_CONNECTOR || "mcp.atlassian.com/atlassian";
 
 // Gate anything that can change Jira state; let reads/searches through.
 const MUTATION_HINTS = [
@@ -30,7 +31,7 @@ export default defineMcpClientConnection({
   description:
     "Atlassian Jira: create issues to track a CfP, then read, comment on, update, and transition " +
     "them. Also supports JQL search over existing issues.",
-  auth: connect("mcp.atlassian.com/atlassian"),
+  auth: connect(JIRA_CONNECTOR),
   // Custom policy: MCP tool names arrive qualified (jira__createJiraIssue), so
   // match the bare name with .includes(). Writes need human approval; reads run
   // freely.
