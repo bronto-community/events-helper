@@ -1,4 +1,4 @@
-import { log } from "./log.js";
+import { errorAttributes, log } from "./log.js";
 import * as store from "./store.js";
 import type { EventItem } from "./types.js";
 
@@ -105,9 +105,14 @@ export async function getOcgroupsEvents(now: number): Promise<EventItem[]> {
       const raw = await fetchRaw();
       cache = { fetchedAt: now, raw };
       await store.write(CACHE_KEY, cache);
-      log.info("ocgroups events refreshed", { count: raw.length });
+      log.info("ocgroups events refreshed", {
+        "events_helper.ocgroups.event_count": raw.length,
+      });
     } catch (err) {
-      log.warn("ocgroups fetch failed", { error: String(err), servedStale: cache !== null });
+      log.warn("ocgroups fetch failed", {
+        ...errorAttributes(err),
+        "events_helper.ocgroups.served_stale": cache !== null,
+      });
       if (cache === null) return [];
     }
   }

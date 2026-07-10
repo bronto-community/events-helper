@@ -2,7 +2,7 @@ import { connectSlackCredentials } from "@vercel/connect/eve";
 import { slackChannel } from "eve/channels/slack";
 import { SNOOZE_DAYS, markDismissed, markSnoozed } from "../lib/alerts.js";
 import { decodeCfpRef, resolvedBlocks } from "../lib/cards.js";
-import { log } from "../lib/log.js";
+import { errorAttributes, log } from "../lib/log.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -32,7 +32,9 @@ export default slackChannel({
       if (action.actionId !== "cfp_dismiss" && action.actionId !== "cfp_snooze") return;
       const teamId = ctx.slack.teamId;
       if (!teamId) {
-        log.warn("cfp interaction without teamId", { actionId: action.actionId });
+        log.warn("cfp interaction without teamId", {
+          "events_helper.slack.action_id": action.actionId,
+        });
         return;
       }
       const principalId = `slack:${teamId}:${action.user.id}`;
@@ -47,7 +49,11 @@ export default slackChannel({
         await markSnoozed(principalId, ref.i, Date.now() + SNOOZE_DAYS * DAY_MS);
         status = `😴 Snoozed for ${SNOOZE_DAYS} days.`;
       }
-      log.info("cfp interaction", { actionId: action.actionId, user: principalId, cfp: ref.i });
+      log.info("cfp interaction", {
+        "events_helper.slack.action_id": action.actionId,
+        "user.id": principalId,
+        "events_helper.cfp.id": ref.i,
+      });
 
       if (action.messageTs) {
         await ctx.slack.request("chat.update", {
@@ -58,7 +64,7 @@ export default slackChannel({
         });
       }
     } catch (err) {
-      log.warn("onInteraction failed", { error: String(err) });
+      log.warn("onInteraction failed", errorAttributes(err));
     }
   },
 });

@@ -364,6 +364,26 @@ export) via `registerOTel({ spanProcessors })`, added `@opentelemetry/sdk-trace-
 dep (2.x, matches `@vercel/otel`'s peer range). Verified the server boots with the new wiring; full
 confirmation is fewer orphaned traceIds in Bronto going forward.
 
+## 23. Telemetry follows OpenTelemetry semantic conventions (standing rule + audit)
+
+Added a permanent rule (AGENTS.md "Telemetry conventions" + agent memory): all logs/metrics/traces
+MUST follow OTel semconv — check the registry before adding an attribute; use the exact key if one
+exists; otherwise namespace under `events_helper.*` (snake_case); framework attrs keep eve keys
+(`eve.session.id`). Then audited and fixed the logs (they were partially ad-hoc):
+
+- `error: String(err)` → semconv `error.type` (low-cardinality class; `error.message` is deprecated)
+  + `events_helper.error.detail` for the text, via a new `errorAttributes()` helper in `lib/log.ts`.
+- principal/`by`/`user` → `user.id`; role → `user.roles` (array).
+- feed `url` → `url.full`; `service` field → `service.name`.
+- token usage → GenAI semconv `gen_ai.usage.input_tokens`/`output_tokens` (per step, matching the AI
+  SDK spans); cumulative/session totals + budget under `events_helper.session.*`; `sessionId` →
+  `eve.session.id` (matches eve's span attribute → correlates).
+- all remaining domain fields (query counts/filters, scan totals, alert counts, source id/kind,
+  slack action id, cfp id) → `events_helper.*`.
+
+Traces were already compliant (`service.name` + `deployment.*` + `vcs.ref.head.revision` resource
+attrs; AI-SDK `gen_ai.*` spans), so no trace changes were needed. Verified logs emit the new keys.
+
 ## Appendix: prompts/asks in order
 
 1. "Build a bot with CfP/event sources (developers.events), easy to add sources or hunt for them,
@@ -403,3 +423,9 @@ confirmation is fewer orphaned traceIds in Bronto going forward.
     cards, built as one opt-in interactive-card DM capability.
 23. "Make the agent aware of token usage + limits it's hitting." → per-session limits + usage hook
     (log + ops alerts) + dynamic budget-awareness instruction.
+24. "deploy.commit isn't on traces+logs — I can't cross-correlate." → stamped commit/deployment id
+    on traces + logs (OTel semconv `vcs.ref.head.revision` / `deployment.id`).
+25. "Logs referencing a traceId with no trace in Bronto." → root-caused to batch-span-processor
+    drops on serverless; switched to SimpleSpanProcessor (immediate export). Filed vercel/eve#679.
+26. "Telemetry must always follow semantic conventions." → standing rule + audited/fixed logs to
+    semconv (error.type, user.id/roles, url.full, gen_ai.usage.*, eve.session.id) + `events_helper.*`.

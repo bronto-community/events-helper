@@ -55,17 +55,20 @@ export default defineTool({
         if (!input.source) throw new Error("'source' is required for action 'add'.");
         const custom = await addSource(input.source);
         log.info("feed source added", {
-          by: actor,
-          id: input.source.id,
-          kind: input.source.kind,
-          url: input.source.url,
+          "user.id": actor,
+          "events_helper.source.id": input.source.id,
+          "events_helper.source.kind": input.source.kind,
+          "url.full": input.source.url,
         });
         return { added: input.source, custom };
       }
       case "remove": {
         if (!input.id) throw new Error("'id' is required for action 'remove'.");
         const custom = await removeSource(input.id);
-        log.info("feed source removed", { by: actor, id: input.id });
+        log.info("feed source removed", {
+          "user.id": actor,
+          "events_helper.source.id": input.id,
+        });
         return { removed: input.id, custom };
       }
       default:

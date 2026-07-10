@@ -102,12 +102,12 @@ export async function runSourceScan(now: number): Promise<ScanResult> {
     firstScan,
   };
   log.info("source scan", {
-    cfpTotal: base.cfpTotal,
-    eventTotal: base.eventTotal,
-    newCfps: newCfps.length,
-    newEvents: newEvents.length,
-    ocgroupsCount,
-    firstScan,
+    "events_helper.scan.cfp_total": base.cfpTotal,
+    "events_helper.scan.event_total": base.eventTotal,
+    "events_helper.scan.new_cfps": newCfps.length,
+    "events_helper.scan.new_events": newEvents.length,
+    "events_helper.scan.ocgroups_count": ocgroupsCount,
+    "events_helper.scan.first": firstScan,
   });
   return { ...base, message: formatMessage(base) };
 }

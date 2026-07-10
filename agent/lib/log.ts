@@ -89,7 +89,7 @@ function emit(level: LogLevel, message: string, attributes?: LogAttributes): voi
   const record: Record<string, unknown> = {
     level,
     message,
-    service: SERVICE,
+    "service.name": SERVICE,
     ...DEPLOY_ATTRIBUTES,
     ...(spanContext ? { traceId: spanContext.traceId, spanId: spanContext.spanId } : {}),
     ...attributes,
@@ -107,3 +107,15 @@ export const log = {
   warn: (message: string, attributes?: LogAttributes) => emit("warn", message, attributes),
   error: (message: string, attributes?: LogAttributes) => emit("error", message, attributes),
 };
+
+/**
+ * Semantic-convention attributes for a caught error: `error.type` (a low-cardinality
+ * class, per OTel — `error.message` is deprecated) plus the variable detail under the
+ * project namespace. Spread into a log's attributes: `log.warn("x failed", errorAttributes(err))`.
+ */
+export function errorAttributes(err: unknown): LogAttributes {
+  return {
+    "error.type": err instanceof Error ? err.name : typeof err,
+    "events_helper.error.detail": err instanceof Error ? err.message : String(err),
+  };
+}

@@ -1,5 +1,5 @@
 import { defineHook } from "eve/hooks";
-import { log } from "../lib/log.js";
+import { errorAttributes, log } from "../lib/log.js";
 import { postToChannel } from "../lib/slack-notify.js";
 import { MAX_INPUT_TOKENS, MAX_OUTPUT_TOKENS, WARN_PCT, usagePct, usageState } from "../lib/usage.js";
 
@@ -29,17 +29,22 @@ export default defineHook({
         const s = usageState.get();
         const pct = usagePct(s);
         log.info("token usage", {
-          sessionId: ctx.session.id,
-          steps: s.steps,
-          inputTokens: s.inputTokens,
-          outputTokens: s.outputTokens,
-          stepInput: stepIn,
-          stepOutput: stepOut,
-          budgetPct: pct,
+          "eve.session.id": ctx.session.id,
+          // per-step usage → GenAI semconv (matches the AI SDK spans)
+          "gen_ai.usage.input_tokens": stepIn,
+          "gen_ai.usage.output_tokens": stepOut,
+          // cumulative session totals + budget → project namespace
+          "events_helper.session.steps": s.steps,
+          "events_helper.session.input_tokens": s.inputTokens,
+          "events_helper.session.output_tokens": s.outputTokens,
+          "events_helper.session.token_budget_pct": pct,
         });
         if (pct >= WARN_PCT && s.alertedPct < WARN_PCT) {
           usageState.update((x) => ({ ...x, alertedPct: pct }));
-          log.warn("token budget threshold reached", { sessionId: ctx.session.id, budgetPct: pct });
+          log.warn("token budget threshold reached", {
+            "eve.session.id": ctx.session.id,
+            "events_helper.session.token_budget_pct": pct,
+          });
           const ch = opsChannel();
           if (ch) {
             await postToChannel(
@@ -51,7 +56,7 @@ export default defineHook({
           }
         }
       } catch (err) {
-        log.warn("usage hook step.completed failed", { error: String(err) });
+        log.warn("usage hook step.completed failed", errorAttributes(err));
       }
     },
 
@@ -59,18 +64,22 @@ export default defineHook({
       try {
         usageState.update((s) => ({ ...s, compactions: s.compactions + 1 }));
         log.info("context compaction", {
-          sessionId: ctx.session.id,
-          usageInputTokens: event.data.usageInputTokens ?? null,
+          "eve.session.id": ctx.session.id,
+          "gen_ai.usage.input_tokens": event.data.usageInputTokens ?? undefined,
         });
       } catch (err) {
-        log.warn("usage hook compaction.requested failed", { error: String(err) });
+        log.warn("usage hook compaction.requested failed", errorAttributes(err));
       }
     },
 
     async "turn.failed"(event, ctx) {
       try {
         const { code, message } = event.data;
-        log.error("turn failed", { sessionId: ctx.session.id, code, message });
+        log.error("turn failed", {
+          "eve.session.id": ctx.session.id,
+          "error.type": code,
+          "events_helper.error.detail": message,
+        });
         const ch = opsChannel();
         if (ch && typeof code === "string" && /TOKEN_LIMIT|RATE|QUOTA|429/i.test(code)) {
           await postToChannel(
@@ -79,7 +88,7 @@ export default defineHook({
           );
         }
       } catch (err) {
-        log.warn("usage hook turn.failed failed", { error: String(err) });
+        log.warn("usage hook turn.failed failed", errorAttributes(err));
       }
     },
   },

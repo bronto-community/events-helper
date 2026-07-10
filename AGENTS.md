@@ -129,6 +129,25 @@ Whenever you change behavior, setup, configuration, or the file layout, update t
 The pre-commit hook prints a reminder when `agent/` changes without a doc change. Treat env-var
 changes as doc changes: update the tables in both `AGENTS.md` and `README.md`.
 
+## Telemetry conventions (required)
+
+All telemetry — **logs, metrics, and traces** — MUST follow OpenTelemetry semantic conventions.
+
+- **Before adding any attribute, check the OTel semconv registry**
+  (<https://opentelemetry.io/docs/specs/semconv/>). If a suitable attribute exists, use its exact
+  key: e.g. `error.type`, `user.id`, `user.roles`, `url.full`, `service.name`, `deployment.id`,
+  `deployment.environment.name`, `vcs.ref.head.revision`, `gen_ai.usage.input_tokens`,
+  `gen_ai.usage.output_tokens`.
+- **Do not invent keys that duplicate/collide with semconv**, and **do not use deprecated ones**
+  (e.g. `error.message` is deprecated → use `error.type` for a low-cardinality class + put variable
+  text in the log body or `events_helper.error.detail`).
+- **No semconv equivalent? Namespace it under `events_helper.*`** (snake_case segments), e.g.
+  `events_helper.query.matched`. Never place custom data under reserved/semconv namespaces.
+- **Framework attributes keep eve's keys** (e.g. `eve.session.id`) so logs correlate with eve's
+  spans.
+- Applies to `agent/lib/log.ts` call sites, `agent/lib/deploy.ts`, `agent/instrumentation.ts`, and
+  `scripts/notify-deploy.mjs`. When adding a log/attribute, confirm the key against semconv first.
+
 ## Conventions
 
 - **NodeNext modules**: relative imports use `.js` extensions (e.g. `../lib/feeds.js`).

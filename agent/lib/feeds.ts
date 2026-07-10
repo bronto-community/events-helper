@@ -6,7 +6,7 @@ import type {
   Source,
 } from "./types.js";
 import { getAllSources } from "./sources.js";
-import { log } from "./log.js";
+import { errorAttributes, log } from "./log.js";
 import { OCGROUPS_ENABLED, getOcgroupsEvents } from "./ocgroups.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -96,7 +96,10 @@ export async function queryCfps(query: CfpQuery = {}): Promise<Cfp[]> {
       try {
         const data = await fetchJson(source.url);
         if (!Array.isArray(data)) {
-          log.warn("cfp source returned non-array", { source: source.name, url: source.url });
+          log.warn("cfp source returned non-array", {
+            "events_helper.source.name": source.name,
+            "url.full": source.url,
+          });
           return [] as Cfp[];
         }
         return data
@@ -104,9 +107,9 @@ export async function queryCfps(query: CfpQuery = {}): Promise<Cfp[]> {
           .filter((c): c is Cfp => c !== null);
       } catch (err) {
         log.warn("cfp source fetch failed", {
-          source: source.name,
-          url: source.url,
-          error: String(err),
+          "events_helper.source.name": source.name,
+          "url.full": source.url,
+          ...errorAttributes(err),
         });
         return [] as Cfp[];
       }
@@ -137,13 +140,13 @@ export async function queryCfps(query: CfpQuery = {}): Promise<Cfp[]> {
 
   const returned = cfps.slice(0, limit);
   log.info("cfps queried", {
-    sources: sources.length,
-    matched: cfps.length,
-    returned: returned.length,
-    keywords: query.keywords,
-    locations: query.locations,
-    withinDays: query.withinDays,
-    includePast: query.includePast ?? false,
+    "events_helper.query.source_count": sources.length,
+    "events_helper.query.matched": cfps.length,
+    "events_helper.query.returned": returned.length,
+    "events_helper.query.keywords": query.keywords,
+    "events_helper.query.locations": query.locations,
+    "events_helper.query.within_days": query.withinDays,
+    "events_helper.query.include_past": query.includePast ?? false,
   });
   return returned;
 }
@@ -159,7 +162,10 @@ export async function queryEvents(query: EventQuery = {}): Promise<EventItem[]> 
       try {
         const data = await fetchJson(source.url);
         if (!Array.isArray(data)) {
-          log.warn("events source returned non-array", { source: source.name, url: source.url });
+          log.warn("events source returned non-array", {
+            "events_helper.source.name": source.name,
+            "url.full": source.url,
+          });
           return [] as EventItem[];
         }
         return data
@@ -167,9 +173,9 @@ export async function queryEvents(query: EventQuery = {}): Promise<EventItem[]> 
           .filter((e): e is EventItem => e !== null);
       } catch (err) {
         log.warn("events source fetch failed", {
-          source: source.name,
-          url: source.url,
-          error: String(err),
+          "events_helper.source.name": source.name,
+          "url.full": source.url,
+          ...errorAttributes(err),
         });
         return [] as EventItem[];
       }
@@ -205,14 +211,14 @@ export async function queryEvents(query: EventQuery = {}): Promise<EventItem[]> 
 
   const returned = events.slice(0, limit);
   log.info("events queried", {
-    sources: sources.length,
-    ocgroups: OCGROUPS_ENABLED,
-    matched: events.length,
-    returned: returned.length,
-    keywords: query.keywords,
-    locations: query.locations,
-    withinDays: query.withinDays,
-    includePast: query.includePast ?? false,
+    "events_helper.query.source_count": sources.length,
+    "events_helper.query.ocgroups_enabled": OCGROUPS_ENABLED,
+    "events_helper.query.matched": events.length,
+    "events_helper.query.returned": returned.length,
+    "events_helper.query.keywords": query.keywords,
+    "events_helper.query.locations": query.locations,
+    "events_helper.query.within_days": query.withinDays,
+    "events_helper.query.include_past": query.includePast ?? false,
   });
   return returned;
 }

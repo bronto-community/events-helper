@@ -3,7 +3,7 @@ import { defineSchedule } from "eve/schedules";
 import { ALERTS_ENABLED, cfpId, computeUserAlerts, listSubscribers, recordAlerted } from "../lib/alerts.js";
 import { cfpAlertBlocks } from "../lib/cards.js";
 import { postBlocks, postToChannel } from "../lib/slack-notify.js";
-import { log } from "../lib/log.js";
+import { errorAttributes, log } from "../lib/log.js";
 import type { Cfp } from "../lib/types.js";
 
 // Daily per-user CfP alerts (06:30 UTC). For each SUBSCRIBED user, DM the CfPs
@@ -25,7 +25,9 @@ export default defineSchedule({
       (async () => {
         const now = Date.now();
         const subscribers = await listSubscribers();
-        log.info("cfp-alerts run", { subscribers: subscribers.length });
+        log.info("cfp-alerts run", {
+          "events_helper.alerts.subscriber_count": subscribers.length,
+        });
 
         for (const principalId of subscribers) {
           try {
@@ -60,13 +62,13 @@ export default defineSchedule({
               now,
             );
             log.info("cfp-alerts sent", {
-              user: principalId,
-              fresh: fresh.length,
-              soon: closingSoon.length,
-              sent: items.length,
+              "user.id": principalId,
+              "events_helper.alerts.fresh_count": fresh.length,
+              "events_helper.alerts.closing_soon_count": closingSoon.length,
+              "events_helper.alerts.sent_count": items.length,
             });
           } catch (err) {
-            log.warn("cfp-alerts user failed", { user: principalId, error: String(err) });
+            log.warn("cfp-alerts user failed", { "user.id": principalId, ...errorAttributes(err) });
           }
         }
       })(),
