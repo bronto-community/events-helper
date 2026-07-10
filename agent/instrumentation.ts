@@ -1,5 +1,6 @@
 import { OTLPHttpProtoTraceExporter, registerOTel } from "@vercel/otel";
 import { defineInstrumentation } from "eve/instrumentation";
+import { DEPLOY_ATTRIBUTES } from "./lib/deploy.js";
 
 // Exports eve/AI-SDK spans (turns, model calls, tool executions) to Bronto over
 // OTLP/HTTP (protobuf). All connection details come from env vars so no secret
@@ -33,6 +34,9 @@ export default defineInstrumentation({
 
     registerOTel({
       serviceName: agentName,
+      // Stamp deployment provenance on every span so traces correlate with the
+      // deployment log by commit / deployment id.
+      attributes: Object.keys(DEPLOY_ATTRIBUTES).length > 0 ? DEPLOY_ATTRIBUTES : undefined,
       traceExporter: new OTLPHttpProtoTraceExporter({
         url: `${endpoint}/v1/traces`,
         headers,

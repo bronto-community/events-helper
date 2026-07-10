@@ -32,9 +32,11 @@ DIRTY=""
 [ -n "$(git status --porcelain)" ] && DIRTY="⚠ working tree had uncommitted changes (deployed as-is)"
 
 # --- deploy -----------------------------------------------------------------
+# Inject the exact commit as a runtime env var so traces + logs carry the same
+# `vcs.ref.head.revision` as this deployment log (see agent/lib/deploy.ts).
 echo "▶ deploying to production…"
 set +e
-OUT=$(VERCEL_USE_EXPERIMENTAL_FRAMEWORKS=1 vercel deploy --prod 2>&1)
+OUT=$(VERCEL_USE_EXPERIMENTAL_FRAMEWORKS=1 vercel deploy --prod -e "EVENTS_HELPER_COMMIT=$HEAD_FULL" 2>&1)
 CODE=$?
 set -e
 printf '%s\n' "$OUT" | tail -3
@@ -43,6 +45,7 @@ if [ "$CODE" -ne 0 ]; then
   exit "$CODE"
 fi
 URL=$(printf '%s\n' "$OUT" | grep -oE 'https://[a-z0-9-]+\.vercel\.app' | tail -1)
+DEPLOY_ID=$(printf '%s\n' "$OUT" | grep -oE 'dpl_[A-Za-z0-9]+' | head -1)
 
 # record what we just deployed so the next run can diff against it
 printf '%s\n' "$HEAD_FULL" > .last-deploy-sha
@@ -57,4 +60,5 @@ DEPLOY_TEXT=$(printf '🚀 *events-helper redeployed to production*\nCommit %s �
   "$( [ -n "$DIRTY" ] && printf '\n%s' "$DIRTY" )")
 
 echo "▶ notifying operator on Slack…"
-DEPLOY_TEXT="$DEPLOY_TEXT" DEPLOY_COMMIT="$HEAD_SHORT" DEPLOY_URL="${URL:-}" node scripts/notify-deploy.mjs
+DEPLOY_TEXT="$DEPLOY_TEXT" DEPLOY_COMMIT="$HEAD_FULL" DEPLOY_ID="${DEPLOY_ID:-}" DEPLOY_URL="${URL:-}" \
+  node scripts/notify-deploy.mjs

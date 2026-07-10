@@ -187,6 +187,12 @@ documents this as a custom-endpoint drain:
 Independently, `npm run deploy` emits a **deployment log** straight to Bronto's `/v1/logs` with the
 commit and change summary, so there's always a durable "deployed" event even without the drain.
 
+**Deployment correlation** — traces and app logs are stamped with the deploying commit and
+deployment id using OpenTelemetry semantic conventions (`vcs.ref.head.revision`, `deployment.id`,
+`vcs.ref.head.name`, `deployment.environment.name`). The deploy log uses the same keys, so in Bronto
+you can filter `vcs.ref.head.revision=<sha>` across traces, logs, and deployment events. The commit
+is injected at deploy time by `npm run deploy`.
+
 **Token usage** — each session has env-tunable token ceilings (`EVE_MAX_INPUT_TOKENS` /
 `EVE_MAX_OUTPUT_TOKENS`); a hook logs running per-session usage to Bronto and alerts the ops channel
 at `EVE_TOKEN_WARN_PCT` (and on token-limit/rate-limit failures), and the agent proactively warns a

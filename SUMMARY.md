@@ -338,6 +338,20 @@ Actions CI workflow (type-check + gitleaks), README license/CI badges + communit
 package.json metadata (repository/description/keywords, v0.1.0). `docs/blog-*` is gitignored so the
 blog draft stays private.
 
+## 21. Deployment ↔ traces/logs correlation
+
+The deploy log carried the commit but traces + runtime logs didn't, so you couldn't cross-correlate
+by deployment. Added `agent/lib/deploy.ts` exposing OTel-semconv deployment provenance —
+`vcs.ref.head.revision` (commit; there is no `deployment.commit` in semconv — it lives in the VCS
+namespace), `deployment.id`, `vcs.ref.head.name`, `deployment.environment.name`. Stamped onto every
+span (via `registerOTel({ attributes })`) and every app log (`lib/log.ts`, console + Bronto push,
+resource-level). The commit is injected at deploy time by `scripts/deploy.sh`
+(`vercel deploy -e EVENTS_HELPER_COMMIT=<full sha>`) so it exactly matches the deploy log; the
+deploy log (`notify-deploy.mjs`) was realigned to the same semconv keys (and grabs the Vercel
+`dpl_` id for `deployment.id`). Result: filter `vcs.ref.head.revision=<sha>` (or `deployment.id`)
+across traces, logs, and deployment events in Bronto. Verified logs carry the attributes when the
+commit env is set.
+
 ## Appendix: prompts/asks in order
 
 1. "Build a bot with CfP/event sources (developers.events), easy to add sources or hunt for them,

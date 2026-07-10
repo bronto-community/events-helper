@@ -42,12 +42,19 @@ async function postBrontoDeployLog() {
   const endpoint = process.env.BRONTO_OTLP_ENDPOINT?.replace(/\/$/, "");
   const apiKey = process.env.BRONTO_API_KEY;
   if (!endpoint || !apiKey) return;
+  // OTel semconv keys so this deployment log correlates with traces + app logs
+  // (which carry the same vcs.ref.head.revision / deployment.id).
   const attrs = [
     { key: "event.name", value: { stringValue: "deployment" } },
     { key: "service.name", value: { stringValue: "events-helper" } },
-    { key: "deploy.commit", value: { stringValue: process.env.DEPLOY_COMMIT || "" } },
-    { key: "deploy.url", value: { stringValue: process.env.DEPLOY_URL || "" } },
+    { key: "deployment.environment.name", value: { stringValue: "production" } },
   ];
+  if (process.env.DEPLOY_COMMIT)
+    attrs.push({ key: "vcs.ref.head.revision", value: { stringValue: process.env.DEPLOY_COMMIT } });
+  if (process.env.DEPLOY_ID)
+    attrs.push({ key: "deployment.id", value: { stringValue: process.env.DEPLOY_ID } });
+  if (process.env.DEPLOY_URL)
+    attrs.push({ key: "url.full", value: { stringValue: process.env.DEPLOY_URL } });
   const payload = {
     resourceLogs: [
       {

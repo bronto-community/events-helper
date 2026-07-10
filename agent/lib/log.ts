@@ -1,4 +1,5 @@
 import { trace } from "@opentelemetry/api";
+import { DEPLOY_ATTRIBUTES } from "./deploy.js";
 
 // Structured, trace-correlated logging. Each line is JSON and carries the active
 // OpenTelemetry trace/span id, so logs line up with the spans we already export
@@ -62,10 +63,14 @@ function shipToBronto(
   };
   if (process.env.BRONTO_COLLECTION) headers["x-bronto-collection"] = process.env.BRONTO_COLLECTION;
   if (process.env.BRONTO_DATASET) headers["x-bronto-dataset"] = process.env.BRONTO_DATASET;
+  const resourceAttrs = [
+    { key: "service.name", value: { stringValue: SERVICE } },
+    ...Object.entries(DEPLOY_ATTRIBUTES).map(([key, v]) => ({ key, value: { stringValue: v } })),
+  ];
   const payload = {
     resourceLogs: [
       {
-        resource: { attributes: [{ key: "service.name", value: { stringValue: SERVICE } }] },
+        resource: { attributes: resourceAttrs },
         scopeLogs: [{ scope: { name: SERVICE }, logRecords: [logRecord] }],
       },
     ],
@@ -85,6 +90,7 @@ function emit(level: LogLevel, message: string, attributes?: LogAttributes): voi
     level,
     message,
     service: SERVICE,
+    ...DEPLOY_ATTRIBUTES,
     ...(spanContext ? { traceId: spanContext.traceId, spanId: spanContext.spanId } : {}),
     ...attributes,
   };

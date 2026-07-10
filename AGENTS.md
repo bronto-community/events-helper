@@ -49,6 +49,7 @@ agent/
     ocgroups.ts            # Open Community Groups events via its JSON search endpoint, cached in Blob
     scan.ts                # source rescan: totals + diff vs last snapshot (Blob) → summary message
     usage.ts               # per-session token-usage state + limits/threshold (env-tunable)
+    deploy.ts              # deployment provenance (semconv vcs.ref.head.revision / deployment.id) for traces+logs
     alerts.ts              # per-user opt-in CfP alert ledger + computeUserAlerts (new / closing-soon)
     cards.ts               # Slack Block Kit builders for interactive CfP alert cards
     slack-notify.ts        # post text or Block Kit to a Slack channel/DM via the Connect app token
@@ -95,6 +96,13 @@ via Connect SDK), and `scripts/precommit.sh` (gitleaks + typecheck + docs-sync).
 - **Observability datasets** (Bronto collection `events-helper`): traces **and** runtime logs share
   `agent-runtime` (`BRONTO_DATASET`); deployment events go to `agent-deployments`
   (`BRONTO_DEPLOY_DATASET`). Keep this split — don't send logs to the deploy dataset or vice versa.
+- **Deployment provenance for correlation** (`lib/deploy.ts`). Traces (OTel resource attributes) and
+  every app log are stamped with OTel-semconv `vcs.ref.head.revision` (commit), `deployment.id`,
+  `vcs.ref.head.name`, `deployment.environment.name`. The commit is injected by `scripts/deploy.sh`
+  via `vercel deploy -e EVENTS_HELPER_COMMIT=<sha>` (matches the deploy log exactly); deployment id /
+  env come from Vercel runtime env. The deploy log (`notify-deploy.mjs`) uses the same semconv keys,
+  so you can filter `vcs.ref.head.revision=<sha>` (or `deployment.id`) across traces, logs, and the
+  deployment event.
 - **Observability**: OTLP traces → Bronto (`instrumentation.ts`); structured app logs via `lib/log.ts`
   carry the active `traceId`/`spanId` so they correlate with those spans. Use `log.info/warn/error`
   in tools/lib for meaningful events (never log secrets). `lib/log.ts` also **pushes logs directly to
