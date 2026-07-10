@@ -1,4 +1,5 @@
 import { OTLPHttpProtoTraceExporter, registerOTel } from "@vercel/otel";
+import { SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base";
 import { defineInstrumentation } from "eve/instrumentation";
 import { DEPLOY_ATTRIBUTES } from "./lib/deploy.js";
 
@@ -37,10 +38,15 @@ export default defineInstrumentation({
       // Stamp deployment provenance on every span so traces correlate with the
       // deployment log by commit / deployment id.
       attributes: Object.keys(DEPLOY_ATTRIBUTES).length > 0 ? DEPLOY_ATTRIBUTES : undefined,
-      traceExporter: new OTLPHttpProtoTraceExporter({
-        url: `${endpoint}/v1/traces`,
-        headers,
-      }),
+      // Export each span immediately on end (SimpleSpanProcessor) instead of the
+      // default batch processor. In the serverless/Workflow runtime an instance
+      // can suspend before a batch flushes, dropping spans — which left some logs
+      // (pushed immediately) pointing at a trace that never reached Bronto.
+      spanProcessors: [
+        new SimpleSpanProcessor(
+          new OTLPHttpProtoTraceExporter({ url: `${endpoint}/v1/traces`, headers }),
+        ),
+      ],
     });
   },
 });

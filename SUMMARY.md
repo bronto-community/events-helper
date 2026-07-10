@@ -352,6 +352,18 @@ deploy log (`notify-deploy.mjs`) was realigned to the same semconv keys (and gra
 across traces, logs, and deployment events in Bronto. Verified logs carry the attributes when the
 commit env is set.
 
+## 22. Fix: logs referencing traces missing from Bronto
+
+Some logs (e.g. "token usage") carried a `traceId` with no matching trace in Bronto. Traced it: the
+hook logs run inside `context.with(ai.eve.turn span)` (confirmed in eve's `harness/tool-loop.js`), so
+the `traceId` is genuinely the turn's trace — the problem was **export**, not a wrong id. Traces used
+`@vercel/otel`'s default **batch** span processor (flush every ~5s / on shutdown); in the
+serverless/Workflow runtime an instance can suspend before a batch flushes, dropping spans, while our
+logs are pushed to Bronto immediately. Switched to a **`SimpleSpanProcessor`** (immediate per-span
+export) via `registerOTel({ spanProcessors })`, added `@opentelemetry/sdk-trace-base` as an explicit
+dep (2.x, matches `@vercel/otel`'s peer range). Verified the server boots with the new wiring; full
+confirmation is fewer orphaned traceIds in Bronto going forward.
+
 ## Appendix: prompts/asks in order
 
 1. "Build a bot with CfP/event sources (developers.events), easy to add sources or hunt for them,

@@ -103,6 +103,10 @@ via Connect SDK), and `scripts/precommit.sh` (gitleaks + typecheck + docs-sync).
   env come from Vercel runtime env. The deploy log (`notify-deploy.mjs`) uses the same semconv keys,
   so you can filter `vcs.ref.head.revision=<sha>` (or `deployment.id`) across traces, logs, and the
   deployment event.
+- **Traces export immediately** (`instrumentation.ts` uses a `SimpleSpanProcessor`, not the default
+  batch). In the serverless/Workflow runtime a batch could go unflushed before the instance
+  suspended, dropping spans — which left some logs (pushed immediately) referencing a `traceId` whose
+  trace never reached Bronto. Immediate per-span export matches the log push and fixes that.
 - **Observability**: OTLP traces → Bronto (`instrumentation.ts`); structured app logs via `lib/log.ts`
   carry the active `traceId`/`spanId` so they correlate with those spans. Use `log.info/warn/error`
   in tools/lib for meaningful events (never log secrets). `lib/log.ts` also **pushes logs directly to
