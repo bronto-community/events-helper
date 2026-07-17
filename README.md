@@ -12,7 +12,8 @@ Built on the [eve framework](https://eve.dev) and deployed on Vercel. A communit
 
 - **Live sources** — pulls CfPs and events from the [developers.events](https://developers.events)
   feeds and CNCF [Open Community Groups](https://ocgroups.dev) (via its JSON search endpoint, cached
-  to avoid overloading it), and can hunt the web for more feeds and add them to a shared catalog.
+  to avoid overloading it), watches specific **Meetup groups** (and any other `.ics` calendar feed)
+  via their official iCal feeds, and can hunt the web for more feeds and add them to a shared catalog.
 - **Interest matching** — a team-wide profile plus a personal overlay per user (add your own
   topics, exclude ones you don't care about).
 - **Jira** — turn a CfP into a tracked issue, then update/transition/comment on it.
@@ -117,9 +118,12 @@ or with `vercel env add <NAME> production`.
 | `BRONTO_DIRECT_LOGS` | no | `false` to stop the agent pushing logs directly to Bronto (set once a Vercel log drain is live) |
 | `OCGROUPS_ENABLED` | no | `false` to disable the Open Community Groups events provider |
 | `OCGROUPS_CACHE_TTL_MIN` | no | Minutes to cache ocgroups events (default 60) |
-| `EVENTS_HELPER_ALERTS_ENABLED` | no | `false` to disable daily per-user CfP alert DMs |
-| `EVENTS_HELPER_ALERT_WINDOW_DAYS` | no | Horizon for "new" matching CfPs (default 90) |
-| `EVENTS_HELPER_ALERT_CLOSING_DAYS` | no | "Closing soon" nudge threshold in days (default 7) |
+| `ICAL_ENABLED` | no | `false` to disable all iCal sources (Meetup groups + other `.ics` feeds) |
+| `ICAL_CACHE_TTL_MIN` | no | Minutes to cache each iCal feed (default 60) — bounds polling of Meetup etc. |
+| `EVENTS_HELPER_ALERTS_ENABLED` | no | `false` to disable daily per-user alert DMs (CfPs + events) |
+| `EVENTS_HELPER_EVENT_ALERTS_ENABLED` | no | `false` to disable just per-user *event* alerts (keeps CfP alerts) |
+| `EVENTS_HELPER_ALERT_WINDOW_DAYS` | no | Horizon for "new" matching CfPs/events (default 90) |
+| `EVENTS_HELPER_ALERT_CLOSING_DAYS` | no | "Closing soon" CfP nudge threshold in days (default 7) |
 | `EVENTS_HELPER_SNOOZE_DAYS` | no | Snooze duration in days (default 30) |
 
 ## One-time integration setup

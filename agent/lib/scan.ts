@@ -1,6 +1,7 @@
 import { queryCfps, queryEvents } from "./feeds.js";
 import { getAllSources } from "./sources.js";
 import { OCGROUPS_ENABLED } from "./ocgroups.js";
+import { ICAL_ENABLED } from "./ical.js";
 import * as store from "./store.js";
 import { log } from "./log.js";
 import type { Cfp, EventItem } from "./types.js";
@@ -23,6 +24,7 @@ export interface ScanResult {
   cfpTotal: number;
   eventTotal: number;
   ocgroupsCount: number;
+  icalCount: number;
   sourceCount: number;
   newCfps: Cfp[];
   newEvents: EventItem[];
@@ -36,7 +38,7 @@ const eventId = (e: EventItem): string => e.url || `${e.name}|${e.dates[0] ?? ""
 function formatMessage(r: Omit<ScanResult, "message">): string {
   const lines: string[] = [
     "🔎 *events-helper source scan*",
-    `Sources scanned: ${r.sourceCount} · Upcoming CfPs: ${r.cfpTotal} · Upcoming events: ${r.eventTotal} (Open Community Groups: ${r.ocgroupsCount})`,
+    `Sources scanned: ${r.sourceCount} · Upcoming CfPs: ${r.cfpTotal} · Upcoming events: ${r.eventTotal} (Open Community Groups: ${r.ocgroupsCount}${r.icalCount ? ` · iCal/Meetup watchlist: ${r.icalCount}` : ""})`,
   ];
 
   if (r.firstScan) {
@@ -90,12 +92,17 @@ export async function runSourceScan(now: number): Promise<ScanResult> {
   });
 
   const ocgroupsCount = events.filter((e) => e.source === OCG_SOURCE).length;
+  const icalSourceNames = new Set(
+    sources.filter((s) => s.kind === "ical").map((s) => s.name),
+  );
+  const icalCount = events.filter((e) => icalSourceNames.has(e.source)).length;
   const sourceCount = sources.length + (OCGROUPS_ENABLED ? 1 : 0);
 
   const base = {
     cfpTotal: cfps.length,
     eventTotal: events.length,
     ocgroupsCount,
+    icalCount,
     sourceCount,
     newCfps,
     newEvents,
@@ -107,6 +114,8 @@ export async function runSourceScan(now: number): Promise<ScanResult> {
     "events_helper.scan.new_cfps": newCfps.length,
     "events_helper.scan.new_events": newEvents.length,
     "events_helper.scan.ocgroups_count": ocgroupsCount,
+    "events_helper.scan.ical_count": icalCount,
+    "events_helper.scan.ical_enabled": ICAL_ENABLED,
     "events_helper.scan.first": firstScan,
   });
   return { ...base, message: formatMessage(base) };

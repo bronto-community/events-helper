@@ -8,6 +8,7 @@ import type {
 import { getAllSources } from "./sources.js";
 import { errorAttributes, log } from "./log.js";
 import { OCGROUPS_ENABLED, getOcgroupsEvents } from "./ocgroups.js";
+import { ICAL_ENABLED, getIcalEvents } from "./ical.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -189,6 +190,13 @@ export async function queryEvents(query: EventQuery = {}): Promise<EventItem[]> 
     events = events.concat(await getOcgroupsEvents(now));
   }
 
+  // iCal sources (e.g. watched Meetup groups) — each cached per-source.
+  if (ICAL_ENABLED) {
+    const icalSources = await getAllSources("ical");
+    const icalEvents = await Promise.all(icalSources.map((s) => getIcalEvents(s, now)));
+    events = events.concat(icalEvents.flat());
+  }
+
   if (!query.includePast) {
     events = events.filter((e) => e.daysUntilStart !== null && e.daysUntilStart >= 0);
   }
@@ -213,6 +221,7 @@ export async function queryEvents(query: EventQuery = {}): Promise<EventItem[]> 
   log.info("events queried", {
     "events_helper.query.source_count": sources.length,
     "events_helper.query.ocgroups_enabled": OCGROUPS_ENABLED,
+    "events_helper.query.ical_enabled": ICAL_ENABLED,
     "events_helper.query.matched": events.length,
     "events_helper.query.returned": returned.length,
     "events_helper.query.keywords": query.keywords,

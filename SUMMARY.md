@@ -429,3 +429,22 @@ attrs; AI-SDK `gen_ai.*` spans), so no trace changes were needed. Verified logs 
     drops on serverless; switched to SimpleSpanProcessor (immediate export). Filed vercel/eve#679.
 26. "Telemetry must always follow semantic conventions." → standing rule + audited/fixed logs to
     semconv (error.type, user.id/roles, url.full, gen_ai.usage.*, eve.session.id) + `events_helper.*`.
+27. "Set up the scheduled Slack messages." → set the missing channel env vars in prod
+    (`SLACK_DIGEST_CHANNEL_ID` = #gtm, `EVENTS_HELPER_DEPLOY_NOTIFY_CHANNEL` = ops channel) so the
+    weekly digest, daily source-scan, and per-user alerts actually post.
+28. "Migrate off my personal free plan onto a Bronto-owned Pro plan." → recreated the project under
+    the `brontoio` team (Pro), made a new private Blob store and copied all data, re-set env vars
+    (Bronto key rotated, since sensitive vars aren't pullable), recreated both Connect connectors
+    with the default UIDs and re-pointed the Slack trigger to `/eve/v1/slack`, disabled SSO, and
+    redeployed with all three crons intact. The managed Slack app is a fresh bot (@brontoeventshelper)
+    that must be re-invited to the digest + ops channels. Old svrnm-otel project pending decommission.
+29. "Add some events from meetup.com — watch specific groups I feed you, and notice when they
+    announce new events." → reconnaissance showed the old 'skip Meetup' shelve was about *bulk
+    aggregation*; every public group publishes an official iCal feed (the thing calendar apps
+    subscribe to). Built **generic iCal source support** (`lib/ical.ts`, `kind: "ical"` on Source):
+    any `.ics` URL becomes an events source, cached per-feed; `manage_sources` resolves a Meetup
+    group URL/`meetup:<slug>` to its calendar feed and validates on add (private groups rejected).
+    Watched-group events flow into list_events, the digest, and the source scan. Per the "both"
+    choice, also added **per-user event alerts**: newly-announced events matching a user's interests
+    are DM'd as interactive cards alongside CfP alerts, with a first-run baseline so nobody gets a
+    backlog flood. Kept it generic — nothing Meetup-specific downstream of the URL resolver.

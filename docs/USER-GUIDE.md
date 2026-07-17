@@ -83,18 +83,22 @@ Once a week the bot posts a digest of upcoming CfPs that match the **global** in
 designated Slack channel — a shared team heads-up. If nothing matches, it stays quiet. (Admins
 configure which channel; see the README.)
 
-## Personal CfP alerts (opt-in)
+## Personal alerts (opt-in)
 
-Want your own daily heads-up? Tell the bot **"subscribe me to CfP alerts"** and it'll DM you each
-day with the CfPs matching *your* interests that are newly found or closing soon — one interactive
-card each. On every card:
+Want your own daily heads-up? Tell the bot **"subscribe me to alerts"** and it'll DM you each day
+with:
 
-- **Submit ↗** — opens the CfP submission page.
-- **Not interested** — you won't be alerted about that CfP again.
-- **Snooze** — mutes that CfP for a while.
+- the **CfPs** matching *your* interests that are newly found or closing soon, and
+- **newly-announced events** matching your interests — for example when a watched Meetup group posts
+  a new event.
 
-To file one as a Jira issue, just **reply in the DM** (e.g. "file the KubeCon CfP to Jira"). Say
-**"unsubscribe from CfP alerts"** to stop the daily DMs.
+Each is an interactive card. On a **CfP** card: **Submit ↗** (opens the submission page),
+**Not interested** (never alert me about this CfP again), **Snooze** (mute it for a while). On an
+**event** card: **View ↗**, **Not interested**, **Snooze**.
+
+To file a CfP as a Jira issue, just **reply in the DM** (e.g. "file the KubeCon CfP to Jira"). Say
+**"unsubscribe from alerts"** to stop the daily DMs. Event alerts only cover things announced
+*after* you subscribe, so you won't get a flood of the existing backlog.
 
 ## Managing sources
 
@@ -106,6 +110,20 @@ Sources are **shared across the team**. If something's missing:
 
 The bot searches the web, checks the feed looks right, and adds it to the shared catalog so
 everyone benefits. You can also ask "what sources are configured?" or "remove the X source."
+
+### Watching a Meetup group
+
+To keep an eye on a specific Meetup group, just give the bot its page URL:
+
+> Watch the Berlin Android meetup: https://www.meetup.com/berlindroid/ — it's in Berlin
+
+The bot subscribes to that group's official calendar feed and adds it as a shared source. From then
+on its upcoming events show up in "list events," the digest, and the team's daily scan (new events
+are flagged in the ops channel), and — if you're subscribed to alerts — you'll get a DM when the
+group announces a new event that matches your interests. Tell it the group's **city** (Meetup
+calendars often don't include a venue) so location filters work. Private, members-only groups can't
+be watched (their calendar isn't public) — the bot will tell you if that's the case. The same works
+for any public calendar (`.ics`) feed, not just Meetup.
 
 ## Tips
 

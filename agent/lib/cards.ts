@@ -1,5 +1,5 @@
-import { cfpId } from "./alerts.js";
-import type { Cfp } from "./types.js";
+import { cfpId, eventId } from "./alerts.js";
+import type { Cfp, EventItem } from "./types.js";
 
 // Raw Slack Block Kit builders for CfP alert cards. We build blocks directly
 // (rather than the JSX card DSL) for full control over button action_ids/values,
@@ -15,6 +15,11 @@ export interface CfpRef {
 
 export function encodeCfpRef(cfp: Cfp): string {
   const ref: CfpRef = { i: cfpId(cfp), n: cfp.event.slice(0, 120) };
+  return JSON.stringify(ref);
+}
+
+export function encodeEventRef(e: EventItem): string {
+  const ref: CfpRef = { i: eventId(e), n: e.name.slice(0, 120) };
   return JSON.stringify(ref);
 }
 
@@ -69,6 +74,45 @@ export function cfpAlertBlocks(cfp: Cfp, opts: { reminder?: boolean } = {}): {
       { type: "actions", elements },
     ],
     fallbackText: `${opts.reminder ? "Closing soon" : "New CfP"}: ${cfp.event} — deadline ${cfp.deadline ?? "unknown"}`,
+  };
+}
+
+function startsIn(days: number | null): string {
+  if (days === null) return "";
+  if (days <= 0) return " (today)";
+  return days === 1 ? " (in 1 day)" : ` (in ${days} days)`;
+}
+
+/** Interactive alert card for one newly-announced event (e.g. from a watched Meetup group). */
+export function eventAlertBlocks(e: EventItem): { blocks: Block[]; fallbackText: string } {
+  const headline = `🆕 *New event* — *${e.name}*`;
+  const when = e.dates[0] ?? "date TBD";
+  const meta = `📅 ${when}${startsIn(e.daysUntilStart)}${e.location ? ` · 📍 ${e.location}` : ""}${
+    e.tags.length ? ` · ${e.tags.slice(0, 4).join(", ")}` : ""
+  } · _${e.source}_`;
+  const ref = encodeEventRef(e);
+
+  const elements: Block[] = [];
+  if (e.url) {
+    elements.push({
+      type: "button",
+      text: { type: "plain_text", text: "View ↗" },
+      url: e.url,
+      action_id: "event_open",
+      style: "primary",
+    });
+  }
+  elements.push(
+    { type: "button", text: { type: "plain_text", text: "Not interested" }, action_id: "event_dismiss", value: ref, style: "danger" },
+    { type: "button", text: { type: "plain_text", text: "Snooze" }, action_id: "event_snooze", value: ref },
+  );
+
+  return {
+    blocks: [
+      { type: "section", text: { type: "mrkdwn", text: `${headline}\n${meta}` } },
+      { type: "actions", elements },
+    ],
+    fallbackText: `New event: ${e.name} — ${when}${e.location ? ` (${e.location})` : ""}`,
   };
 }
 

@@ -1,6 +1,6 @@
 import { connectSlackCredentials } from "@vercel/connect/eve";
 import { slackChannel } from "eve/channels/slack";
-import { SNOOZE_DAYS, markDismissed, markSnoozed } from "../lib/alerts.js";
+import { SNOOZE_DAYS, markDismissed, markEventDismissed, markSnoozed } from "../lib/alerts.js";
 import { decodeCfpRef, resolvedBlocks } from "../lib/cards.js";
 import { errorAttributes, log } from "../lib/log.js";
 
@@ -29,10 +29,11 @@ export default slackChannel({
   // replying to the DM instead.
   async onInteraction(action, ctx) {
     try {
-      if (action.actionId !== "cfp_dismiss" && action.actionId !== "cfp_snooze") return;
+      const handled = ["cfp_dismiss", "cfp_snooze", "event_dismiss", "event_snooze"];
+      if (!handled.includes(action.actionId)) return;
       const teamId = ctx.slack.teamId;
       if (!teamId) {
-        log.warn("cfp interaction without teamId", {
+        log.warn("alert interaction without teamId", {
           "events_helper.slack.action_id": action.actionId,
         });
         return;
@@ -40,19 +41,24 @@ export default slackChannel({
       const principalId = `slack:${teamId}:${action.user.id}`;
       const ref = decodeCfpRef(action.value);
       if (!ref) return;
+      const noun = action.actionId.startsWith("event_") ? "event" : "CfP";
 
       let status: string;
       if (action.actionId === "cfp_dismiss") {
         await markDismissed(principalId, ref.i);
         status = "🔕 Not interested — you won't be alerted about this CfP again.";
+      } else if (action.actionId === "event_dismiss") {
+        await markEventDismissed(principalId, ref.i);
+        status = "🔕 Not interested — you won't be alerted about this event again.";
       } else {
         await markSnoozed(principalId, ref.i, Date.now() + SNOOZE_DAYS * DAY_MS);
         status = `😴 Snoozed for ${SNOOZE_DAYS} days.`;
       }
-      log.info("cfp interaction", {
+      log.info("alert interaction", {
         "events_helper.slack.action_id": action.actionId,
         "user.id": principalId,
-        "events_helper.cfp.id": ref.i,
+        "events_helper.alert.kind": noun,
+        "events_helper.alert.id": ref.i,
       });
 
       if (action.messageTs) {

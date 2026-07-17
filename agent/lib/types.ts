@@ -6,10 +6,26 @@ export interface Source {
   id: string;
   /** Human-friendly name shown to the user. */
   name: string;
-  /** HTTPS URL returning a JSON array in the developers.events format. */
+  /**
+   * The feed URL. For `cfps`/`events` this is an HTTPS URL returning a JSON
+   * array in the developers.events format; for `ical` it is an iCalendar
+   * (`.ics`) feed URL, e.g. a Meetup group's `/events/ical/` calendar.
+   */
   url: string;
-  /** Which normalized shape this feed produces. */
-  kind: "cfps" | "events";
+  /**
+   * Which normalized shape this feed produces. `cfps` and `events` are
+   * developers.events-shaped JSON; `ical` is any iCalendar feed (produces
+   * events) — used for Meetup groups and other calendar-published sources.
+   */
+  kind: "cfps" | "events" | "ical";
+  /**
+   * Optional location label applied to every event from this source (e.g.
+   * "Berlin"). iCal feeds often omit a venue, and a per-source label also lets
+   * location filters match a hand-picked group to the region it meets in.
+   */
+  location?: string;
+  /** Optional extra tags attached to every event from this source (e.g. topics). */
+  tags?: string[];
 }
 
 // --- Raw feed shapes (developers.events) -----------------------------------
