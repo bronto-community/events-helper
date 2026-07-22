@@ -111,19 +111,26 @@ Sources are **shared across the team**. If something's missing:
 The bot searches the web, checks the feed looks right, and adds it to the shared catalog so
 everyone benefits. You can also ask "what sources are configured?" or "remove the X source."
 
-### Watching a Meetup group
+### Watching a Meetup group or Luma calendar
 
-To keep an eye on a specific Meetup group, just give the bot its page URL:
+To keep an eye on a specific Meetup group or Luma calendar, just give the bot its page URL:
 
 > Watch the Berlin Android meetup: https://www.meetup.com/berlindroid/ — it's in Berlin
 
-The bot subscribes to that group's official calendar feed and adds it as a shared source. From then
-on its upcoming events show up in "list events," the digest, and the team's daily scan (new events
-are flagged in the ops channel), and — if you're subscribed to alerts — you'll get a DM when the
-group announces a new event that matches your interests. Tell it the group's **city** (Meetup
-calendars often don't include a venue) so location filters work. Private, members-only groups can't
-be watched (their calendar isn't public) — the bot will tell you if that's the case. The same works
-for any public calendar (`.ics`) feed, not just Meetup.
+> Watch this Luma calendar: https://luma.com/london-tech-network — London
+
+The bot resolves the underlying calendar feed and adds it as a shared source. From then on its
+upcoming events show up in "list events," the digest, and the team's daily scan (new events are
+flagged in the ops channel), and — if you're subscribed to alerts — you'll get a DM when it announces
+a new event that matches your interests. Tell it the **city** (these calendars often don't include a
+venue) so location filters work. Private/members-only groups can't be watched (their calendar isn't
+public) — the bot will tell you if that's the case. The same works for any public calendar (`.ics`)
+feed, not just Meetup and Luma.
+
+The team already watches a large curated set of tech groups across Dublin, Cork, Belfast and the
+cities that are easy to reach from Dublin (London, Amsterdam, Frankfurt, Paris, Berlin, Brussels,
+Zurich, Barcelona, Madrid, Lisbon, Copenhagen, Manchester, Edinburgh, Milan), plus conferences in
+those places via developers.events. Ask "what sources are configured?" to see them.
 
 ## Tips
 

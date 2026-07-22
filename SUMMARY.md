@@ -448,3 +448,14 @@ attrs; AI-SDK `gen_ai.*` spans), so no trace changes were needed. Verified logs 
     choice, also added **per-user event alerts**: newly-announced events matching a user's interests
     are DM'd as interactive cards alongside CfP alerts, with a first-run baseline so nobody gets a
     backlog flood. Kept it generic — nothing Meetup-specific downstream of the URL resolver.
+30. "Add more sources: Cork/Belfast, cities easy to reach from Dublin (London, Amsterdam, Frankfurt,
+    …), and LUMA." → confirmed Luma calendars expose official iCal feeds
+    (`api.lu.ma/ics/get?entity=calendar&id=<cal-id>`), so they reuse the generic iCal support:
+    added a Luma+Meetup URL resolver (`resolveIcalUrl`) so either can be added by pasting a page URL,
+    a generic "LOCATION-holds-a-URL" parser rule (Luma puts the event link there), and a concurrency
+    cap on the iCal fan-out (the catalog grew to ~230 feeds). Curated + validated ~150 active tech
+    Meetup groups across 16 wider-net European cities (via parallel research agents, each verifying
+    the feed returns 200), capped 10/city, added with city labels + topic tags. Added 5 genuinely-
+    local Luma calendars (Luma's discover pages surface global-featured calendars, not per-city, so
+    Luma is hand-picked, not bulk-harvested). Expanded the global location interests to those cities
+    so developers.events conferences there also surface. Catalog: 78 → 229 sources.

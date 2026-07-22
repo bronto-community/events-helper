@@ -12,8 +12,9 @@ Built on the [eve framework](https://eve.dev) and deployed on Vercel. A communit
 
 - **Live sources** — pulls CfPs and events from the [developers.events](https://developers.events)
   feeds and CNCF [Open Community Groups](https://ocgroups.dev) (via its JSON search endpoint, cached
-  to avoid overloading it), watches specific **Meetup groups** (and any other `.ics` calendar feed)
-  via their official iCal feeds, and can hunt the web for more feeds and add them to a shared catalog.
+  to avoid overloading it), watches specific **Meetup groups** and **Luma calendars** (and any other
+  `.ics` calendar feed) via their official iCal feeds, and can hunt the web for more feeds and add them
+  to a shared catalog.
 - **Interest matching** — a team-wide profile plus a personal overlay per user (add your own
   topics, exclude ones you don't care about).
 - **Jira** — turn a CfP into a tracked issue, then update/transition/comment on it.

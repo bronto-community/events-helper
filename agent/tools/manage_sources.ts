@@ -11,16 +11,17 @@ import { backend } from "../lib/store.js";
 import { callerId } from "../lib/roles.js";
 import { log } from "../lib/log.js";
 import { OCGROUPS_ENABLED } from "../lib/ocgroups.js";
-import { ICAL_ENABLED, toIcalUrl, validateIcal } from "../lib/ical.js";
+import { ICAL_ENABLED, resolveIcalUrl, validateIcal } from "../lib/ical.js";
 
 export default defineTool({
   description:
     "List, add, or remove event/CfP feed sources (a shared team catalog). Three source kinds: " +
     "'cfps' and 'events' are HTTPS URLs returning a JSON array in the developers.events format; " +
-    "'ical' is any iCalendar (.ics) feed and produces events. To watch a Meetup group, add an " +
-    "'ical' source and pass the group's page URL (e.g. https://www.meetup.com/berlindroid/) or " +
-    "'meetup:<slug>' as the url — it's resolved to the group's calendar feed automatically, and " +
-    "validated on add (private groups without a public calendar are rejected). Use the optional " +
+    "'ical' is any iCalendar (.ics) feed and produces events. To watch a Meetup group or a Luma " +
+    "calendar, add an 'ical' source and pass the page URL (e.g. https://www.meetup.com/berlindroid/ " +
+    "or https://luma.com/london-tech-network) or a shorthand ('meetup:<slug>', 'luma:<cal-id>') as " +
+    "the url — it's resolved to the underlying calendar feed automatically, and validated on add " +
+    "(private/empty calendars are rejected). Use the optional " +
     "'location' to label where a group meets (helps location filters) and 'tags' for topics. " +
     "Use 'add' for sources you discovered while hunting the web (with web_search / web_fetch); " +
     "added sources persist across sessions. Built-in sources cannot be removed.",
@@ -73,7 +74,7 @@ export default defineTool({
         const source = { ...input.source };
         let validated: { upcoming: number } | undefined;
         if (source.kind === "ical") {
-          source.url = toIcalUrl(source.url);
+          source.url = await resolveIcalUrl(source.url);
           const check = await validateIcal(source.url);
           if (!check.ok) {
             throw new Error(

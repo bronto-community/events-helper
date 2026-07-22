@@ -33,10 +33,15 @@ function keyFor(url: string): string {
   return `${CACHE_PREFIX}${(h >>> 0).toString(16)}.json`;
 }
 
+const lumaIcsUrl = (calId: string) =>
+  `https://api.lu.ma/ics/get?entity=calendar&id=${calId}`;
+
 /**
- * Resolve user input to an iCal feed URL. A Meetup group URL or `meetup:<slug>`
- * shorthand becomes that group's calendar feed; anything else is returned as-is
- * (assumed to already be an `.ics`/calendar URL).
+ * Resolve user input to an iCal feed URL — synchronous cases only. A Meetup
+ * group URL or `meetup:<slug>` becomes that group's calendar feed; a
+ * `luma:<cal-id>` shorthand becomes that Luma calendar's ICS endpoint; anything
+ * else is returned as-is. Luma *page* URLs need a fetch to discover the calendar
+ * id — use `resolveIcalUrl` for those.
  */
 export function toIcalUrl(input: string): string {
   const raw = input.trim();
@@ -48,7 +53,34 @@ export function toIcalUrl(input: string): string {
   if (meetupUrl) {
     return `https://www.meetup.com/${meetupUrl[1]}/events/ical/`;
   }
+  const lumaShorthand = raw.match(/^luma:(cal-[A-Za-z0-9]+)$/i);
+  if (lumaShorthand) {
+    return lumaIcsUrl(lumaShorthand[1]);
+  }
   return raw;
+}
+
+/**
+ * Async resolver used when adding a source. Handles everything `toIcalUrl` does,
+ * plus Luma calendar *page* URLs (`luma.com/<slug>` / `lu.ma/<slug>`): it fetches
+ * the page and extracts the calendar's `api_id` to build the ICS endpoint. Throws
+ * if a Luma page has no discoverable calendar id.
+ */
+export async function resolveIcalUrl(input: string): Promise<string> {
+  const raw = input.trim();
+  const lumaPage = raw.match(/^https?:\/\/(?:www\.)?(?:lu\.ma|luma\.com)\/(?!discover\/|event\/)([^/?#]+)/i);
+  if (lumaPage && !/api\.lu\.ma/i.test(raw)) {
+    const res = await fetch(raw, {
+      headers: { accept: "text/html", "user-agent": "events-helper/1.0 (+https://events-helper-brontoio.vercel.app)" },
+    });
+    if (!res.ok) throw new Error(`Luma page HTTP ${res.status}`);
+    const html = await res.text();
+    // The calendar's own api_id is the first `"api_id":"cal-…"` in the page JSON.
+    const m = html.match(/"api_id":"(cal-[A-Za-z0-9]+)"/);
+    if (!m) throw new Error("Could not find a Luma calendar id on that page (is it a calendar URL?)");
+    return lumaIcsUrl(m[1]);
+  }
+  return toIcalUrl(raw);
 }
 
 // --- RFC 5545 parsing ------------------------------------------------------
@@ -169,16 +201,24 @@ function parseVevents(ics: string): RawVevent[] {
 function toEventItem(e: RawVevent, source: Source, now: number): EventItem | null {
   if (!e.start) return null; // an event with no start is not actionable
   const dates = [e.start.iso, e.end?.iso].filter((d): d is string => Boolean(d));
-  const location = e.location || source.location || "";
+  // Some providers (e.g. Luma) put the event page URL in LOCATION rather than a
+  // venue. If LOCATION is a URL and there's no explicit URL, treat it as the
+  // event link and fall back to the source's location label for the location.
+  let loc = e.location ?? "";
+  let url = e.url ?? "";
+  if (!url && /^https?:\/\//i.test(loc)) {
+    url = loc;
+    loc = "";
+  }
   return {
     name: e.summary || "(untitled event)",
-    location,
+    location: loc || source.location || "",
     country: "",
     dates: [...new Set(dates)],
     daysUntilStart: Math.round((e.start.ms - now) / DAY_MS),
     status: e.status === "CANCELLED" ? "canceled" : "open",
     tags: source.tags ?? [],
-    url: e.url || source.url,
+    url: url || source.url,
     source: source.name,
   };
 }

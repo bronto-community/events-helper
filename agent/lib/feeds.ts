@@ -12,6 +12,24 @@ import { ICAL_ENABLED, getIcalEvents } from "./ical.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+// Cap concurrent iCal fetches: with a large watchlist (Meetup + Luma) a plain
+// Promise.all would fire hundreds of simultaneous requests at one host and risk
+// rate-limiting. Run them in bounded batches instead.
+const ICAL_FETCH_CONCURRENCY = 8;
+
+async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let i = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (i < items.length) {
+      const idx = i++;
+      results[idx] = await fn(items[idx]);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
 function toIso(ms: number | undefined): string | null {
   if (typeof ms !== "number" || !Number.isFinite(ms)) return null;
   return new Date(ms).toISOString().slice(0, 10);
@@ -190,10 +208,11 @@ export async function queryEvents(query: EventQuery = {}): Promise<EventItem[]> 
     events = events.concat(await getOcgroupsEvents(now));
   }
 
-  // iCal sources (e.g. watched Meetup groups) — each cached per-source.
+  // iCal sources (e.g. watched Meetup groups, Luma calendars) — each cached
+  // per-source; fetched in bounded batches to avoid hammering one host.
   if (ICAL_ENABLED) {
     const icalSources = await getAllSources("ical");
-    const icalEvents = await Promise.all(icalSources.map((s) => getIcalEvents(s, now)));
+    const icalEvents = await mapLimit(icalSources, ICAL_FETCH_CONCURRENCY, (s) => getIcalEvents(s, now));
     events = events.concat(icalEvents.flat());
   }
 

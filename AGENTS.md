@@ -47,7 +47,7 @@ agent/
     sources.ts             # seed feeds + custom sources (shared catalog)
     feeds.ts               # fetch + normalize (epoch→ISO) + filter + sort (merges ocgroups + iCal)
     ocgroups.ts            # Open Community Groups events via its JSON search endpoint, cached in Blob
-    ical.ts                # generic iCalendar (.ics) source: fetch/parse/normalize, cached per-feed; Meetup URL→feed resolver
+    ical.ts                # generic iCalendar (.ics) source: fetch/parse/normalize, cached per-feed; Meetup + Luma URL→feed resolver (resolveIcalUrl)
     scan.ts                # source rescan: totals + diff vs last snapshot (Blob) → summary message
     usage.ts               # per-session token-usage state + limits/threshold (env-tunable)
     deploy.ts              # deployment provenance (semconv vcs.ref.head.revision / deployment.id) for traces+logs
@@ -94,19 +94,26 @@ via Connect SDK), and `scripts/precommit.sh` (gitleaks + typecheck + docs-sync).
   Subscribers enumerated via `store.listKeys`. Cards are raw Block Kit (`lib/cards.ts`), not the JSX
   card DSL, so we control button `action_id`/`value`. Toggle events off independently with
   `EVENTS_HELPER_EVENT_ALERTS_ENABLED=false`.
-- **Meetup = generic iCal, not a bespoke integration** (`lib/ical.ts`). We deliberately did **not**
-  build a Meetup API client. Meetup's official API is Pro-only/own-groups and its ToS forbids bulk
-  aggregation + HTML scraping — but every **public** group publishes an official iCalendar feed at
-  `meetup.com/<group>/events/ical/`, which is exactly what a calendar app subscribes to. So we built
-  a **generic iCal source kind** (`kind: "ical"` on `Source`): any `.ics` URL becomes an events
+- **Meetup + Luma = generic iCal, not bespoke integrations** (`lib/ical.ts`). We deliberately did
+  **not** build platform API clients. Meetup's official API is Pro-only/own-groups and its ToS forbids
+  bulk aggregation + HTML scraping — but every **public** group publishes an official iCalendar feed at
+  `meetup.com/<group>/events/ical/`, and every **Luma calendar** exposes one at
+  `api.lu.ma/ics/get?entity=calendar&id=<cal-id>` — exactly what a calendar app subscribes to. So we
+  built a **generic iCal source kind** (`kind: "ical"` on `Source`): any `.ics` URL becomes an events
   source, fetched + parsed (RFC 5545: line-unfolding, params, `DTSTART` date parse at day
   granularity) + normalized to `EventItem`, cached per-feed in Blob with a TTL (`ICAL_CACHE_TTL_MIN`)
-  so we poll politely. `manage_sources` resolves a Meetup group URL/`meetup:<slug>` to its feed and
-  validates on add (private groups return `403 Invalid feed signature` → rejected with a clear
-  message). Watched-group events then flow through `queryEvents`, the digest, the source scan
-  (team-wide "what's new" to the ops channel), and per-user event alerts. This **reverses** the
-  earlier "skip Meetup" decision, which was about *bulk aggregating all of Meetup* — a curated
-  watchlist of public iCal feeds is a different, legitimate use. Gate with `ICAL_ENABLED=false`.
+  so we poll politely. `manage_sources` calls `resolveIcalUrl` to turn a **Meetup group URL /
+  `meetup:<slug>`** or a **Luma calendar URL / `luma:<cal-id>`** into the underlying feed (Luma page
+  URLs are fetched to discover the calendar's `api_id`), and validates on add (private/empty calendars
+  are rejected). A generic parser rule handles Luma putting the event URL in `LOCATION`: if `LOCATION`
+  is a URL and there's no `URL`, it becomes the event link (location falls back to the source's label).
+  Because the watchlist is now large (~230 feeds), the iCal fan-out in `queryEvents` runs in bounded
+  batches (`ICAL_FETCH_CONCURRENCY`, default 8) rather than all at once, to avoid rate-limiting a host.
+  Watched events flow through `queryEvents`, the digest, the source scan (team-wide "what's new" to the
+  ops channel), and per-user event alerts. Note re Luma: its **discover pages surface globally-featured
+  calendars, not per-city ones**, so Luma is added as hand-picked calendars, not bulk-harvested. This
+  **reverses** the earlier "skip Meetup" decision, which was about *bulk aggregating all of Meetup* — a
+  curated watchlist of public iCal feeds is a different, legitimate use. Gate with `ICAL_ENABLED=false`.
 - **Roles** (`lib/roles.ts`): **admins** (`EVENTS_HELPER_ADMIN_IDS`) may edit global settings;
   **super admins / operators** (`EVENTS_HELPER_SUPER_ADMIN_IDS`) are a superset with extra
   privileges. Open until either list is configured, then enforced. Identity comes from
