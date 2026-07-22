@@ -459,3 +459,11 @@ attrs; AI-SDK `gen_ai.*` spans), so no trace changes were needed. Verified logs 
     local Luma calendars (Luma's discover pages surface global-featured calendars, not per-city, so
     Luma is hand-picked, not bulk-harvested). Expanded the global location interests to those cities
     so developers.events conferences there also surface. Catalog: 78 → 229 sources.
+31. "CI is failing because gitleaks would require a license?" → root-caused from the run logs:
+    the gitleaks **CLI** is MIT/free, but the `gitleaks/gitleaks-action@v2` **wrapper** demands a
+    paid license key (`GITLEAKS_LICENSE`) when the repo owner is an organization — and
+    `bronto-community` is one, so every CI run on main had failed at that step since the workflow
+    was added. Fix: dropped the action wrapper and run the CLI directly in CI (download pinned
+    release binary v8.30.1, `gitleaks git --no-banner --redact` over full history) — the same scan
+    the pre-commit hook already runs locally, no license needed. Verified the exact command passes
+    over all commits locally before pushing.
