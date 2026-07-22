@@ -186,6 +186,11 @@ All telemetry — **logs, metrics, and traces** — MUST follow OpenTelemetry se
 - **Verify** with `npm run typecheck`, then `npm exec -- eve dev --no-ui` and exercise the HTTP
   API (`POST /eve/v1/session`, `GET /eve/v1/session/:id/stream`). Model calls need an AI Gateway
   credential (`AI_GATEWAY_API_KEY` or `eve link`).
+- **`main` is protected — all changes land via pull request.** Direct pushes (admins included) are
+  blocked; open a branch + PR and merge once the CI `check` (typecheck + gitleaks) passes. No
+  review-approval count is required (solo-maintainer setup) — raise it when the team grows. Note
+  `npm run deploy` deploys the local working tree, independent of git push; merge the PR first so
+  production matches `main`.
 
 ## Deploy
 

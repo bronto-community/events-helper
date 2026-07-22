@@ -467,3 +467,8 @@ attrs; AI-SDK `gen_ai.*` spans), so no trace changes were needed. Verified logs 
     release binary v8.30.1, `gitleaks git --no-banner --redact` over full history) — the same scan
     the pre-commit hook already runs locally, no license needed. Verified the exact command passes
     over all commits locally before pushing.
+32. "Add branch protection to this repo" → chose the full-PR flow: `main` now requires a pull
+    request with the CI `check` (typecheck + gitleaks) passing before merge, enforced for admins
+    too; force-pushes and branch deletion blocked. Approval count deliberately 0 — a solo
+    maintainer can't approve their own PR, so requiring 1 would deadlock; bump it when teammates
+    start reviewing. Docs note added to AGENTS.md conventions (last direct push to main).
