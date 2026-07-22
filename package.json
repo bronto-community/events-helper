@@ -48,7 +48,7 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@types/node": "24.x",
+    "@types/node": "26.x",
     "husky": "^9.1.7",
     "typescript": "7.0.1-rc"
   },
