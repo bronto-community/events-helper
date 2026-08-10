@@ -147,11 +147,23 @@ function parseDate(prop: RawProp): { ms: number; iso: string } | null {
 interface RawVevent {
   uid?: string;
   summary?: string;
+  description?: string;
+  organizer?: string;
   location?: string;
   url?: string;
   status?: string;
   start?: { ms: number; iso: string };
   end?: { ms: number; iso: string };
+}
+
+/** Descriptions can be kilobytes of boilerplate; we only need enough for spam signals. */
+const MAX_DESCRIPTION = 600;
+
+/** `ORGANIZER;CN=Berlin JUG:mailto:x@meetup.com` → "Berlin JUG"; else the address. */
+function organizerOf(prop: RawProp): string {
+  const cn = prop.params.CN;
+  if (cn) return unescapeText(cn.replace(/^"|"$/g, ""));
+  return prop.value.trim().replace(/^mailto:/i, "");
 }
 
 function parseVevents(ics: string): RawVevent[] {
@@ -177,6 +189,12 @@ function parseVevents(ics: string): RawVevent[] {
         break;
       case "SUMMARY":
         cur.summary = unescapeText(prop.value);
+        break;
+      case "DESCRIPTION":
+        cur.description = unescapeText(prop.value).slice(0, MAX_DESCRIPTION);
+        break;
+      case "ORGANIZER":
+        cur.organizer = organizerOf(prop);
         break;
       case "LOCATION":
         cur.location = unescapeText(prop.value);
@@ -220,6 +238,8 @@ function toEventItem(e: RawVevent, source: Source, now: number): EventItem | nul
     tags: source.tags ?? [],
     url: url || source.url,
     source: source.name,
+    ...(e.description ? { description: e.description } : {}),
+    ...(e.organizer ? { organizer: e.organizer } : {}),
   };
 }
 

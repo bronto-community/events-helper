@@ -18,6 +18,9 @@ Built on the [eve framework](https://eve.dev) and deployed on Vercel. A communit
   to a shared catalog.
 - **Interest matching** — a team-wide profile plus a personal overlay per user (add your own
   topics, exclude ones you don't care about).
+- **Spam filtering** — the same session cross-posted to a dozen city groups, ticket-selling
+  promos, webinars advertised under a city: filtered out of every list, digest, scan and alert,
+  with duplicate listings folded together. Reported daily so false positives can be allowlisted.
 - **Jira** — turn a CfP into a tracked issue, then update/transition/comment on it.
 - **Slack** — chat with the bot; get a weekly team digest, plus opt-in **daily personal CfP
   alerts** as interactive cards (Submit / Not interested / Snooze; file-to-Jira by replying).
@@ -127,6 +130,9 @@ or with `vercel env add <NAME> production`.
 | `EVENTS_HELPER_ALERT_WINDOW_DAYS` | no | Horizon for "new" matching CfPs/events (default 90) |
 | `EVENTS_HELPER_ALERT_CLOSING_DAYS` | no | "Closing soon" CfP nudge threshold in days (default 7) |
 | `EVENTS_HELPER_SNOOZE_DAYS` | no | Snooze duration in days (default 30) |
+| `EVENTS_HELPER_SPAM_FILTER_ENABLED` | no | `false` to stop filtering spammy events (duplicate listings are still collapsed) |
+| `EVENTS_HELPER_SPAM_THRESHOLD` | no | Score at which an event is dropped (default 2; strong signal = 2, weak = 1) |
+| `EVENTS_HELPER_SPAM_CROSSPOST_MIN` | no | Distinct calendars the same listing must appear in to count as cross-posted (default 3) |
 
 ## One-time integration setup
 

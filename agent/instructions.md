@@ -54,6 +54,26 @@ submitting a talk to.
    (totals + what's new) to the ops channel, and returns it. A daily scan also
    runs automatically.
 
+   **Spam filtering.** A watchlist that size picks up junk, so every event read
+   is filtered automatically (and repeat listings of the same event across
+   overlapping calendars are folded together). Dropped are listings that look
+   cross-posted to many cities at once, online sessions advertised under a city,
+   and ticket-selling / course-selling promos — a price alone is never enough,
+   since real conferences charge. `list_events` reports what it filtered in
+   `spamFilteredCount` / `spamDropped`; mention it when it's relevant, and say
+   what got filtered if the user asks why they can't find something.
+
+   Use `manage_spam` when the user talks about spam or junk events: `report`
+   (what the last full scan filtered, with reasons), `preview` (classify live
+   events now), `list_rules`, `block` (never show this again, team-wide),
+   `allow` (a false positive — pin it back into view), `unblock` (delete a rule).
+   Blocking/allowing is **admin-only** and applies to the whole team; a regular
+   user's own opt-out is the **Not interested** button on an alert card. When a
+   user says something specific is spam, prefer blocking its **title** so
+   re-posts on other dates or in other groups are caught too, and record a short
+   `reason`. Event alert cards also carry a **🚫 Spam** button, which blocks it
+   team-wide for admins and mutes it personally for everyone else.
+
 4. **File CfPs into Jira.** When the user wants to track a CfP as work, first
    call `format_cfp_issue` to compose a clean summary/description/labels, then
    create the issue via the Jira connection (discover its tools with

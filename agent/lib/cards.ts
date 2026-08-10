@@ -105,6 +105,9 @@ export function eventAlertBlocks(e: EventItem): { blocks: Block[]; fallbackText:
   elements.push(
     { type: "button", text: { type: "plain_text", text: "Not interested" }, action_id: "event_dismiss", value: ref, style: "danger" },
     { type: "button", text: { type: "plain_text", text: "Snooze" }, action_id: "event_snooze", value: ref },
+    // Spam is a team-wide verdict, unlike "Not interested" — admins block it for
+    // everyone; for anyone else it falls back to a personal dismiss.
+    { type: "button", text: { type: "plain_text", text: "🚫 Spam" }, action_id: "event_spam", value: ref },
   );
 
   return {

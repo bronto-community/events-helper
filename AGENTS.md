@@ -37,6 +37,7 @@ agent/
     list_cfps.ts           # query CfPs (open, future deadlines, filters, sorted)
     list_events.ts         # query events (upcoming, filters, sorted)
     manage_sources.ts      # list/add/remove shared feed sources (JSON feeds + iCal/Meetup groups)
+    manage_spam.ts         # spam filter control: report / preview / list_rules / block|allow|unblock (admin)
     manage_interests.ts    # get / set_global (admin) / set_personal / subscribe|unsubscribe (alerts)
     roles.ts               # report who the super admins/admins are + caller's role (Slack names best-effort)
     rescan_sources.ts      # on-demand source scan → posts totals + what's new to the ops channel
@@ -45,7 +46,9 @@ agent/
     types.ts               # feed shapes + normalized Cfp/EventItem/Interests
     store.ts               # durable KV: private Vercel Blob, local-file fallback for dev
     sources.ts             # seed feeds + custom sources (shared catalog)
-    feeds.ts               # fetch + normalize (epoch→ISO) + filter + sort (merges ocgroups + iCal)
+    feeds.ts               # fetch + normalize (epoch→ISO) + dedupe + spam filter + filter + sort (merges ocgroups + iCal)
+    spam.ts                # event spam heuristics (scored signals) + team-wide block/allow rules + dedupeEvents
+    ids.ts                 # canonical cfpId/eventId (shared by ledger, scan snapshot, spam rules)
     ocgroups.ts            # Open Community Groups events via its JSON search endpoint, cached in Blob
     ical.ts                # generic iCalendar (.ics) source: fetch/parse/normalize, cached per-feed; Meetup + Luma URL→feed resolver (resolveIcalUrl)
     scan.ts                # source rescan: totals + diff vs last snapshot (Blob) → summary message
@@ -114,6 +117,28 @@ via Connect SDK), and `scripts/precommit.sh` (gitleaks + typecheck + docs-sync).
   calendars, not per-city ones**, so Luma is added as hand-picked calendars, not bulk-harvested. This
   **reverses** the earlier "skip Meetup" decision, which was about *bulk aggregating all of Meetup* — a
   curated watchlist of public iCal feeds is a different, legitimate use. Gate with `ICAL_ENABLED=false`.
+- **Spam filtering is a read-path filter, not a one-off cleanup** (`lib/spam.ts`). A ~230-feed
+  watchlist carries junk: one operator running the same online session in a dozen city groups
+  ("Platform Engineers <City>"), paid trainings dressed as meetups, webinars advertised under a city.
+  Filtering therefore lives inside `queryEvents` (via `queryEventsDetailed`), so **every** consumer
+  inherits it on every run — `list_events`, the weekly digest, the daily source scan, per-user alerts —
+  and it keeps working for events that don't exist yet. Two layers: **scored heuristics** (strong
+  signal = 2 drops on its own, weak = 1 needs a second signal; threshold `EVENTS_HELPER_SPAM_THRESHOLD`)
+  and a durable **team-wide rule list** (`block`/`allow` by event id, title substring, organizer, url
+  host, or source; `allow` beats everything so a false positive can be pinned back). A **price tag is
+  deliberately weak** — real conferences charge money, so it only drops something in combination.
+  The signals: `cross_posted` (same title + date in ≥ `EVENTS_HELPER_SPAM_CROSSPOST_MIN` calendars
+  **spanning more than one location**), `cross_posted_series`, `virtual_in_city`, `paid`, `promo`.
+  Two lessons from validating against live data: (1) several aggregator calendars listing the *same*
+  local meetup looked identical to cross-posting, so `dedupeEvents` folds repeat listings together
+  (by title+date+location, or title+date+organizer, keeping the copy with the better link) **before**
+  classification, and the multiple-locations requirement separates "sold into 6 cities" from "one
+  Edinburgh meetup in 3 calendars"; (2) "online" merely *mentioned* in a description is not evidence
+  (RustConf says "also available online"), so `virtual_in_city` needs it in the **title** or an
+  explicit phrase ("join us on Zoom", "streamed live"). Nothing is filtered silently: drops carry
+  their reasons, the daily scan reports the tally to the ops channel, and `manage_spam` shows the
+  report. Admin-only for the shared rules; a regular user's own opt-out stays "Not interested".
+  Gate with `EVENTS_HELPER_SPAM_FILTER_ENABLED=false`. CfPs are not filtered.
 - **Roles** (`lib/roles.ts`): **admins** (`EVENTS_HELPER_ADMIN_IDS`) may edit global settings;
   **super admins / operators** (`EVENTS_HELPER_SUPER_ADMIN_IDS`) are a superset with extra
   privileges. Open until either list is configured, then enforced. Identity comes from
@@ -246,6 +271,9 @@ Connect setup.
 | `EVENTS_HELPER_SNOOZE_DAYS` | How long a "Snooze" mutes a CfP/event (default 30) |
 | `OCGROUPS_ENABLED` | `false` to drop the Open Community Groups events provider |
 | `OCGROUPS_CACHE_TTL_MIN` | Minutes to cache ocgroups events (default 60) — bounds requests to that platform |
+| `EVENTS_HELPER_SPAM_FILTER_ENABLED` | `false` to stop filtering spammy events (duplicates are still collapsed) |
+| `EVENTS_HELPER_SPAM_THRESHOLD` | Score at which an event is dropped (default 2; strong signal = 2, weak = 1) |
+| `EVENTS_HELPER_SPAM_CROSSPOST_MIN` | Distinct calendars the same listing must appear in to count as cross-posted (default 3) |
 | `ICAL_ENABLED` | `false` to drop all iCal sources (Meetup groups + other `.ics` feeds) |
 | `ICAL_CACHE_TTL_MIN` | Minutes to cache each iCal feed (default 60) — bounds polling of Meetup etc. |
 | `EVENTS_HELPER_DEPLOY_NOTIFY_CHANNEL` | Slack channel/user id the deploy wrapper DMs on redeploy |
