@@ -255,9 +255,15 @@ scoped to this project, event *Deployment Succeeded*) POSTs to `/vercel/deploy-h
 keeping: minting the Slack Connect token needs a Vercel OIDC token, which the runtime has natively
 and a laptop or CI job does not (that is why the old script-based notice was best-effort); and
 **every** production deploy is announced, including a dashboard rollback, not just the ones that went
-through a wrapper. Notices are idempotent per deployment id, and the "what changed" compare link
-comes from the previous production sha kept in Blob at
-`events-helper/deploy/last-production.json`.
+through a wrapper. Notices are idempotent per deployment id, and the change summary comes from the
+previous production sha kept in Blob at `events-helper/deploy/last-production.json`.
+
+The notice lists the commits inline (merge commits dropped, newest first, capped at 10 with an
+"…and N more" tail) plus a files-changed stat, followed by a GitHub compare link. Since the runtime
+has no git checkout, that list comes from GitHub's **compare API**, called unauthenticated against
+the public repo with a 5s timeout. It is deliberately best-effort: on a rate-limit, a slow response,
+or a missing baseline, the notice falls back to naming the head commit and still posts. A deploy
+notice must never be delayed or lost because GitHub was unavailable.
 
 Deploying by hand still works and is the escape hatch when Vercel's build is unavailable:
 

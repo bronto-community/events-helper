@@ -527,3 +527,12 @@ attrs; AI-SDK `gen_ai.*` spans), so no trace changes were needed. Verified logs 
     non-deployment. Confirmed the rest of the chain afterwards by reading the Blob key the notifier
     writes (`events-helper/deploy/last-production.json`), which only exists if the webhook reached
     the route and passed signature verification.
+36. "Can I see the 'what's changed' in the Slack message somehow?" → it was there, but only as a
+    link, which was a quiet downgrade: the old script-built notice listed the commits inline and the
+    webhook version replaced that with a compare url, because the runtime has no git checkout to
+    diff. Restored the inline list by calling GitHub's **compare API** (the repo is public, so no
+    auth), dropping merge commits the way `git log --no-merges` did, capping at 10 bullets, and
+    adding the files-changed stat back. The compare link stays at the end, so the message is now
+    strictly better than either version. The call is best-effort with a 5s timeout: on a rate-limit
+    or an outage the notice falls back to naming the head commit and still posts, because a deploy
+    notice that arrives late or not at all is worse than one without a commit list.
