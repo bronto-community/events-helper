@@ -75,21 +75,39 @@ npm run typecheck
 
 ## Deploy to Vercel
 
+**Merging to `main` is what deploys.** The Vercel project is connected to the GitHub repo with
+production branch `main`, so Vercel builds and promotes the merge commit. Preview deployments are
+switched off through the project's *Ignored Build Step* (`[ "$VERCEL_ENV" != "production" ]`),
+because several env vars are shared with the preview target and a preview would otherwise run
+against the real Blob store and Slack channel.
+
+Deploying by hand is the escape hatch:
+
 ```bash
 vercel link          # first time: link/create the project
-npm run deploy       # summarize changes → deploy → notify the operator on Slack
-```
-
-`npm run deploy` (`scripts/deploy.sh`) diffs git since the last deploy, runs the production
-deploy, and DMs the operator (`EVENTS_HELPER_DEPLOY_NOTIFY_CHANNEL`) a change summary via the
-bot's Slack token. To deploy without the notification, run the raw command:
-
-```bash
-VERCEL_USE_EXPERIMENTAL_FRAMEWORKS=1 vercel deploy --prod
+npm run deploy       # scripts/deploy.sh: vercel deploy --prod, with the commit stamped
 ```
 
 Set the environment variables below in the Vercel project (Settings → Environment Variables),
 or with `vercel env add <NAME> production`.
+
+### Deploy notifications
+
+The Slack notice and the Bronto deployment event are sent by the **agent**, when Vercel tells it a
+production deployment succeeded. That way every deploy is announced the same way, whether it came
+from a merge, from `npm run deploy`, or from a rollback in the dashboard, and no Slack credential
+has to live in CI.
+
+One-time setup:
+
+1. Go to the team's **Settings → Webhooks** and create a webhook scoped to this project, subscribed
+   to **Deployment Succeeded**, with the endpoint `https://<your-app>/vercel/deploy-hook`.
+2. Copy the signing secret it shows once, and set it as `VERCEL_WEBHOOK_SECRET` in the project's
+   production environment.
+3. Set `EVENTS_HELPER_DEPLOY_NOTIFY_CHANNEL` to the channel or user id that should receive the DM.
+
+Without `VERCEL_WEBHOOK_SECRET` the route rejects every request, since it is publicly reachable and
+signature verification is the only thing separating Vercel from anyone who guesses the URL.
 
 ### Roles
 
@@ -112,7 +130,9 @@ or with `vercel env add <NAME> production`.
 | `SLACK_DIGEST_CHANNEL_ID` | for digest | Slack channel id the weekly digest posts to |
 | `EVENTS_HELPER_ADMIN_IDS` | recommended | Comma-separated principal ids allowed to set **global** settings |
 | `EVENTS_HELPER_SUPER_ADMIN_IDS` | recommended | Operator(s); superset of admin, with extra privileges |
-| `EVENTS_HELPER_DEPLOY_NOTIFY_CHANNEL` | for deploy notices | Slack channel id (`Cxxxx`) or operator user id (`Uxxxx`) DM'd on each `npm run deploy` |
+| `EVENTS_HELPER_DEPLOY_NOTIFY_CHANNEL` | for deploy notices | Slack channel id (`Cxxxx`) or operator user id (`Uxxxx`) DM'd when a production deploy succeeds |
+| `VERCEL_WEBHOOK_SECRET` | for deploy notices | Signing secret of the Vercel *Deployment Succeeded* webhook; without it `/vercel/deploy-hook` refuses every request |
+| `EVENTS_HELPER_REPO_URL` | no | Repo base url for the "what changed" compare link (default `https://github.com/bronto-community/events-helper`) |
 | `SLACK_CONNECTOR` | no | Slack Connect connector uid (default `slack/bronto-events-helper`) |
 | `BRONTO_OTLP_ENDPOINT` | for tracing | e.g. `https://ingestion.eu.bronto.io` |
 | `BRONTO_API_KEY` | for tracing | Bronto ingest key |
