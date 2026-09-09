@@ -27,6 +27,7 @@ agent/
   channels/
     eve.ts                 # built-in HTTP channel (placeholderAuth — see below)
     slack.ts               # Slack via Vercel Connect (connector slack/bronto-events-helper)
+    vercel-deploy.ts       # POST /vercel/deploy-hook: Vercel deployment.succeeded webhook (signed)
   connections/
     jira.ts                # Atlassian remote MCP, user-scoped Connect OAuth, writes gated on approval
   schedules/
@@ -57,13 +58,14 @@ agent/
     alerts.ts              # per-user opt-in alert ledger + computeUserAlerts (CfP new/closing-soon) + computeUserEventAlerts (new events, baselined)
     cards.ts               # Slack Block Kit builders for interactive CfP + event alert cards
     slack-notify.ts        # post text or Block Kit to a Slack channel/DM via the Connect app token
+    deploy-notify.ts       # announce a production deploy: Slack notice + Bronto deployment event
     interests.ts           # global/personal/effective resolution
     roles.ts               # caller identity + admin / super-admin (operator) roles
     log.ts                 # structured, trace-correlated logging (traceId/spanId from active span)
 ```
 
-Plus `scripts/deploy.sh` (deploy + operator notification), `scripts/notify-deploy.mjs` (Slack post
-via Connect SDK), and `scripts/precommit.sh` (gitleaks + typecheck + docs-sync).
+Plus `scripts/deploy.sh` (hand-deploy escape hatch) and `scripts/precommit.sh` (gitleaks +
+typecheck + docs-sync).
 
 ## Key decisions (why it's built this way)
 
@@ -151,11 +153,12 @@ via Connect SDK), and `scripts/precommit.sh` (gitleaks + typecheck + docs-sync).
   (`BRONTO_DEPLOY_DATASET`). Keep this split — don't send logs to the deploy dataset or vice versa.
 - **Deployment provenance for correlation** (`lib/deploy.ts`). Traces (OTel resource attributes) and
   every app log are stamped with OTel-semconv `vcs.ref.head.revision` (commit), `deployment.id`,
-  `vcs.ref.head.name`, `deployment.environment.name`. The commit is injected by `scripts/deploy.sh`
-  via `vercel deploy -e EVENTS_HELPER_COMMIT=<sha>` (matches the deploy log exactly); deployment id /
-  env come from Vercel runtime env. The deploy log (`notify-deploy.mjs`) uses the same semconv keys,
-  so you can filter `vcs.ref.head.revision=<sha>` (or `deployment.id`) across traces, logs, and the
-  deployment event.
+  `vcs.ref.head.name`, `deployment.environment.name`. For a Git-integration deploy the commit comes
+  from Vercel's own `VERCEL_GIT_COMMIT_SHA`; a hand deploy injects it via
+  `vercel deploy -e EVENTS_HELPER_COMMIT=<sha>` (which wins when both are present). Deployment id /
+  env come from Vercel runtime env. The deployment event (`lib/deploy-notify.ts`) uses the same
+  semconv keys, so you can filter `vcs.ref.head.revision=<sha>` (or `deployment.id`) across traces,
+  logs, and the deployment event.
 - **Traces export immediately** (`instrumentation.ts` uses a `SimpleSpanProcessor`, not the default
   batch). In the serverless/Workflow runtime a batch could go unflushed before the instance
   suspended, dropping spans — which left some logs (pushed immediately) referencing a `traceId` whose
@@ -198,8 +201,8 @@ All telemetry — **logs, metrics, and traces** — MUST follow OpenTelemetry se
   `events_helper.query.matched`. Never place custom data under reserved/semconv namespaces.
 - **Framework attributes keep eve's keys** (e.g. `eve.session.id`) so logs correlate with eve's
   spans.
-- Applies to `agent/lib/log.ts` call sites, `agent/lib/deploy.ts`, `agent/instrumentation.ts`, and
-  `scripts/notify-deploy.mjs`. When adding a log/attribute, confirm the key against semconv first.
+- Applies to `agent/lib/log.ts` call sites, `agent/lib/deploy.ts`, `agent/lib/deploy-notify.ts`, and
+  `agent/instrumentation.ts`. When adding a log/attribute, confirm the key against semconv first.
 
 ## Conventions
 
@@ -213,36 +216,54 @@ All telemetry — **logs, metrics, and traces** — MUST follow OpenTelemetry se
   credential (`AI_GATEWAY_API_KEY` or `eve link`).
 - **`main` is protected — all changes land via pull request.** Direct pushes (admins included) are
   blocked; open a branch + PR and merge once the CI `check` (typecheck + gitleaks) passes. No
-  review-approval count is required (solo-maintainer setup) — raise it when the team grows. Note
-  `npm run deploy` deploys the local working tree, independent of git push; merge the PR first so
-  production matches `main`.
+  review-approval count is required (solo-maintainer setup) — raise it when the team grows.
+  **Merging the PR is what deploys** (see below).
 
 ## Deploy
 
 Standing instruction from the owner: **redeploy to production automatically after changes that
 should go live** (no per-deploy confirmation needed).
 
-Deploy through the wrapper so the operator is notified with a change summary:
+**Merging to `main` deploys.** Vercel's **Git integration** is connected to
+`bronto-community/events-helper` with production branch `main`, so Vercel builds and promotes the
+merge commit itself. There is no deploy workflow in GitHub Actions and no `VERCEL_TOKEN` secret;
+CI (`ci.yml`) only gates the PR with typecheck + gitleaks.
+
+**Preview deployments are off.** The project's *Ignored Build Step* is
+`[ "$VERCEL_ENV" != "production" ]`, which exits 0 (skip) for anything that is not production. This
+is deliberate: `BLOB_READ_WRITE_TOKEN`, `BRONTO_API_KEY`, `SLACK_DIGEST_CHANNEL_ID` and the admin ids
+are set on the preview target too, so a preview would boot against the **real** Blob store and the
+real Slack channel on a publicly reachable URL (SSO protection is off). Re-scope those env vars
+before turning previews back on.
+
+**The operator notice comes from the agent, not from CI.** A team webhook (Settings → Webhooks,
+scoped to this project, event *Deployment Succeeded*) POSTs to `/vercel/deploy-hook`, which
+`agent/channels/vercel-deploy.ts` serves. It verifies the `x-vercel-signature` HMAC-SHA1 against
+`VERCEL_WEBHOOK_SECRET`, ignores anything whose `target` is not `production`, and hands off to
+`lib/deploy-notify.ts` for the Slack DM plus the Bronto deployment event. Two consequences worth
+keeping: minting the Slack Connect token needs a Vercel OIDC token, which the runtime has natively
+and a laptop or CI job does not (that is why the old script-based notice was best-effort); and
+**every** production deploy is announced, including a dashboard rollback, not just the ones that went
+through a wrapper. Notices are idempotent per deployment id, and the "what changed" compare link
+comes from the previous production sha kept in Blob at
+`events-helper/deploy/last-production.json`.
+
+Deploying by hand still works and is the escape hatch when Vercel's build is unavailable:
 
 ```bash
-npm run deploy   # scripts/deploy.sh: summary → deploy → Slack DM to the operator
+npm run deploy   # scripts/deploy.sh: vercel deploy --prod, with the commit stamped
 ```
 
-It diffs `git` from the last recorded deploy (`.last-deploy-sha`, gitignored), deploys, then posts
-the summary to `EVENTS_HELPER_DEPLOY_NOTIFY_CHANNEL` via `scripts/notify-deploy.mjs`. That helper
-uses the `@vercel/connect` **SDK** with the OIDC token from env (the CLI cannot mint the app-subject
-Slack token — only the runtime/OIDC can). Notification is **best-effort**: if `VERCEL_OIDC_TOKEN` is
-missing/expired (refresh with `vercel env pull`), the deploy still succeeds and the notice is
-skipped. The raw `VERCEL_USE_EXPERIMENTAL_FRAMEWORKS=1 vercel deploy --prod` also works but never
-notifies.
+It sends no Slack message of its own; the webhook announces it like any other deploy.
 
 Vercel project: `brontoio/events-helper` (team `brontoio`, project `prj_UVBCFToFKHcBiVVGdGrCF9V21jto`),
 on a Pro plan. SSO deployment protection is **disabled** (required so Slack/Connect webhooks reach the
 app; app-layer auth still guards routes). Both Connect connectors live under this team with the default
 UIDs (`slack/bronto-events-helper`, `mcp.atlassian.com/atlassian`), and the Slack trigger is re-pointed
 to `/eve/v1/slack`. The managed Slack app is `@brontoeventshelper` — invite it to the digest and ops
-channels after any fresh Connect (re)install. See `README.md` for the full env-var list and one-time
-Connect setup.
+channels after any fresh Connect (re)install. Note that **authored channel routes mount at the path
+they declare**, not under eve's reserved `/eve/v1` prefix, which is why the webhook lives at
+`/vercel/deploy-hook`. See `README.md` for the full env-var list and one-time Connect setup.
 
 ## Environment variables
 
@@ -276,5 +297,7 @@ Connect setup.
 | `EVENTS_HELPER_SPAM_CROSSPOST_MIN` | Distinct calendars the same listing must appear in to count as cross-posted (default 3) |
 | `ICAL_ENABLED` | `false` to drop all iCal sources (Meetup groups + other `.ics` feeds) |
 | `ICAL_CACHE_TTL_MIN` | Minutes to cache each iCal feed (default 60) — bounds polling of Meetup etc. |
-| `EVENTS_HELPER_DEPLOY_NOTIFY_CHANNEL` | Slack channel/user id the deploy wrapper DMs on redeploy |
+| `EVENTS_HELPER_DEPLOY_NOTIFY_CHANNEL` | Slack channel/user id DM'd when a production deploy succeeds |
+| `VERCEL_WEBHOOK_SECRET` | Signing secret for the Vercel `deployment.succeeded` webhook (unset = the hook route refuses every request) |
+| `EVENTS_HELPER_REPO_URL` | Repo base url for the "what changed" compare link (default `https://github.com/bronto-community/events-helper`) |
 | `SLACK_CONNECTOR` | Slack Connect connector uid (default `slack/bronto-events-helper`) |

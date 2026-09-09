@@ -491,3 +491,25 @@ attrs; AI-SDK `gen_ai.*` spans), so no trace changes were needed. Verified logs 
     (one vendor's online series sold into 6 city groups, a cross-posted virtual AI series, paid
     "networking" webinars) and 82 duplicates folded, with the three known false positives kept.
     Nothing disappears silently: the daily scan reports the tally and reasons to the ops channel.
+34. "Is a merged PR auto deployed?" → it was not, and the investigation kept finding the answer was
+    stranger than expected. Three PRs had merged over a month with no deployment; production was
+    current only because an agent session had run `npm run deploy` by hand right after each merge.
+    The first fix drafted was a GitHub Actions workflow, until two things showed up: the repo has no
+    `VERCEL_TOKEN` secret, so that workflow would have gone red on its first push, and the Vercel
+    project had meanwhile been Git-connected in the dashboard, which would have made Actions and
+    Vercel both deploy every merge. So the mechanism moved to Vercel's side entirely, and the
+    interesting part became **where the deploy notification lives**. It now lives *in the agent*: a
+    team webhook on *Deployment Succeeded* POSTs to `/vercel/deploy-hook`, a small authored eve
+    channel that checks the `x-vercel-signature` HMAC and hands off to `lib/deploy-notify.ts` for the
+    Slack DM and the Bronto deployment event. The reason that is better than a script is credentials:
+    posting to Slack goes through Vercel Connect, which needs an OIDC token that the runtime has
+    natively and a laptop or CI job only gets from `vercel env pull`, expiring. The old notice was
+    documented as best-effort for exactly that reason. Moving it into the runtime also means **every**
+    production deploy announces itself, including a dashboard rollback, which the wrapper could never
+    see. The change summary became a GitHub compare link built from the previous production sha kept
+    in Blob, since there is no git checkout in the runtime. `scripts/deploy.sh` shrank to a
+    `vercel deploy --prod` escape hatch and `scripts/notify-deploy.mjs` was deleted. One hazard found
+    on the way: the Git connection had also enabled preview deployments, and `BLOB_READ_WRITE_TOKEN`,
+    `BRONTO_API_KEY` and `SLACK_DIGEST_CHANNEL_ID` are all set on the preview target, so any of the
+    ten open dependabot PRs would have booted the agent against the real Blob store and the real
+    Slack channel on a public URL. Previews are now skipped by an Ignored Build Step.
