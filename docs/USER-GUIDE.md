@@ -132,6 +132,36 @@ cities that are easy to reach from Dublin (London, Amsterdam, Frankfurt, Paris, 
 Zurich, Barcelona, Madrid, Lisbon, Copenhagen, Manchester, Edinburgh, Milan), plus conferences in
 those places via developers.events. Ask "what sources are configured?" to see them.
 
+## Spam and junk events
+
+A watchlist this large picks up listings that are not real local events: the same online session
+posted into a dozen city groups by one company, a paid training dressed up as a meetup, a webinar
+advertised under your city that nobody can attend there. The bot filters those out of everything it
+shows you (lists, the weekly digest, the daily scan, your personal alerts), and it keeps doing it for
+new listings as they appear, so you don't have to clean up the same junk twice. It also folds
+duplicates together when several calendars carry the same real event.
+
+A price alone never gets something filtered: real conferences charge money.
+
+What you can ask:
+
+> Show the spam filter report
+
+> Why don't I see the RustConf listing?
+
+> That "Thinking in Platforms" event is spam, block it
+
+> The Blockchain Scotland meetup is fine, allow it
+
+The daily scan message in the ops channel tells you how many listings were filtered and why, so
+anything wrongly filtered is easy to spot. Blocking or allowing changes it **for the whole team**, so
+it needs an admin. Anything you just personally don't want to hear about again is the **Not
+interested** button on the alert card, which only affects you. Event alert cards also have a
+**🚫 Spam** button: if you're an admin it blocks the listing team-wide, otherwise it mutes it for you.
+
+When something is blocked by its title, the same listing re-posted next month or in another group is
+caught too.
+
 ## Tips
 
 - Deadlines move fast — ask fresh rather than trusting an old message; the bot re-checks live.

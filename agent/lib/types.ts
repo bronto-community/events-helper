@@ -90,6 +90,16 @@ export interface EventItem {
   tags: string[];
   url: string;
   source: string;
+  /**
+   * Free-text blurb when the source provides one (iCal `DESCRIPTION`), truncated.
+   * Carries the signals the spam filter needs (ticket prices, "join on Zoom", …).
+   */
+  description?: string;
+  /**
+   * Who is hosting, when the source says (iCal `ORGANIZER`). Used to spot one
+   * person cross-posting the same thing to many groups.
+   */
+  organizer?: string;
 }
 
 /** The user's interest profile, stored durably and used to rank/filter results. */

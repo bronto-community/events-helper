@@ -1,7 +1,14 @@
-import { queryCfps, queryEvents } from "./feeds.js";
+import { queryCfps, queryEventsDetailed } from "./feeds.js";
 import { getAllSources } from "./sources.js";
 import { OCGROUPS_ENABLED } from "./ocgroups.js";
 import { ICAL_ENABLED } from "./ical.js";
+import { cfpId, eventId } from "./ids.js";
+import {
+  SPAM_FILTER_ENABLED,
+  saveSpamReport,
+  summarizeDropped,
+  type DroppedEvent,
+} from "./spam.js";
 import * as store from "./store.js";
 import { log } from "./log.js";
 import type { Cfp, EventItem } from "./types.js";
@@ -28,18 +35,29 @@ export interface ScanResult {
   sourceCount: number;
   newCfps: Cfp[];
   newEvents: EventItem[];
+  /** Events the spam filter kept out of this scan, with the reason for each. */
+  spamDropped: DroppedEvent[];
+  /** Repeat listings of the same event folded together across overlapping calendars. */
+  duplicatesCollapsed: number;
   firstScan: boolean;
   message: string;
 }
-
-const cfpId = (c: Cfp): string => c.cfpUrl || `${c.event}|${c.deadline ?? ""}`;
-const eventId = (e: EventItem): string => e.url || `${e.name}|${e.dates[0] ?? ""}`;
 
 function formatMessage(r: Omit<ScanResult, "message">): string {
   const lines: string[] = [
     "🔎 *events-helper source scan*",
     `Sources scanned: ${r.sourceCount} · Upcoming CfPs: ${r.cfpTotal} · Upcoming events: ${r.eventTotal} (Open Community Groups: ${r.ocgroupsCount}${r.icalCount ? ` · iCal/Meetup watchlist: ${r.icalCount}` : ""})`,
   ];
+
+  // Always visible, so a false positive can be spotted and allowlisted.
+  if (r.spamDropped.length > 0) {
+    lines.push(
+      `🚫 Filtered as spam: ${r.spamDropped.length} — ${summarizeDropped(r.spamDropped)}. Ask me to "show the spam filter report" to review.`,
+    );
+  }
+  if (r.duplicatesCollapsed > 0) {
+    lines.push(`♻️ Duplicate listings folded together: ${r.duplicatesCollapsed}`);
+  }
 
   if (r.firstScan) {
     lines.push("_First scan — baseline recorded; new items will be flagged from next scan on._");
@@ -72,11 +90,16 @@ function formatMessage(r: Omit<ScanResult, "message">): string {
 }
 
 export async function runSourceScan(now: number): Promise<ScanResult> {
-  const [cfps, events, sources] = await Promise.all([
+  const [cfps, eventResult, sources] = await Promise.all([
     queryCfps({ limit: 5000 }),
-    queryEvents({ limit: 5000 }),
+    queryEventsDetailed({ limit: 5000 }),
     getAllSources(),
   ]);
+  const { events, spamDropped, duplicatesCollapsed } = eventResult;
+
+  // The scan is the one query with no keyword/location narrowing, so its drop set
+  // is the team-wide picture — persist it as the report the spam tool shows.
+  if (spamDropped.length > 0) await saveSpamReport(spamDropped, now);
 
   const prev = await store.read<Snapshot | null>(SNAPSHOT_KEY, null);
   const firstScan = prev === null;
@@ -106,6 +129,8 @@ export async function runSourceScan(now: number): Promise<ScanResult> {
     sourceCount,
     newCfps,
     newEvents,
+    spamDropped,
+    duplicatesCollapsed,
     firstScan,
   };
   log.info("source scan", {
@@ -116,6 +141,9 @@ export async function runSourceScan(now: number): Promise<ScanResult> {
     "events_helper.scan.ocgroups_count": ocgroupsCount,
     "events_helper.scan.ical_count": icalCount,
     "events_helper.scan.ical_enabled": ICAL_ENABLED,
+    "events_helper.scan.spam_dropped": spamDropped.length,
+    "events_helper.scan.duplicates_collapsed": duplicatesCollapsed,
+    "events_helper.scan.spam_filter_enabled": SPAM_FILTER_ENABLED,
     "events_helper.scan.first": firstScan,
   });
   return { ...base, message: formatMessage(base) };

@@ -3,6 +3,8 @@ import { slackChannel } from "eve/channels/slack";
 import { SNOOZE_DAYS, markDismissed, markEventDismissed, markSnoozed } from "../lib/alerts.js";
 import { decodeCfpRef, resolvedBlocks } from "../lib/cards.js";
 import { errorAttributes, log } from "../lib/log.js";
+import { isAdmin } from "../lib/roles.js";
+import { addRules, rulesFromIdAndTitle } from "../lib/spam.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -29,7 +31,7 @@ export default slackChannel({
   // replying to the DM instead.
   async onInteraction(action, ctx) {
     try {
-      const handled = ["cfp_dismiss", "cfp_snooze", "event_dismiss", "event_snooze"];
+      const handled = ["cfp_dismiss", "cfp_snooze", "event_dismiss", "event_snooze", "event_spam"];
       if (!handled.includes(action.actionId)) return;
       const teamId = ctx.slack.teamId;
       if (!teamId) {
@@ -50,6 +52,24 @@ export default slackChannel({
       } else if (action.actionId === "event_dismiss") {
         await markEventDismissed(principalId, ref.i);
         status = "🔕 Not interested — you won't be alerted about this event again.";
+      } else if (action.actionId === "event_spam") {
+        // Spam is a team-wide verdict, so only admins get to make it. For everyone
+        // else the click still does the useful thing: mute it for them.
+        if (isAdmin(principalId)) {
+          const { added } = await addRules(
+            rulesFromIdAndTitle(ref.i, ref.n, "flagged as spam from a Slack alert card"),
+            principalId,
+            Date.now(),
+          );
+          const byTitle = added.some((r) => r.match === "title");
+          status = `🚫 Marked as spam — filtered out for the whole team from now on${
+            byTitle ? ", including re-posts of the same title" : ""
+          }.`;
+        } else {
+          await markEventDismissed(principalId, ref.i);
+          status =
+            "🔕 Muted for you. Marking something as team-wide spam needs an admin — ask one to run “block this as spam”.";
+        }
       } else {
         await markSnoozed(principalId, ref.i, Date.now() + SNOOZE_DAYS * DAY_MS);
         status = `😴 Snoozed for ${SNOOZE_DAYS} days.`;

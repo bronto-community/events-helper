@@ -1,5 +1,6 @@
 import { getEffective } from "./interests.js";
 import { queryCfps, queryEvents } from "./feeds.js";
+import { cfpId, eventId } from "./ids.js";
 import * as store from "./store.js";
 import type { Cfp, EventItem } from "./types.js";
 
@@ -43,11 +44,9 @@ const EMPTY_LEDGER: AlertLedger = {
   dismissedEventIds: [],
 };
 
-/** Stable CfP id — same scheme as lib/scan.ts so ids line up. */
-export const cfpId = (c: Cfp): string => c.cfpUrl || `${c.event}|${c.deadline ?? ""}`;
-
-/** Stable event id — same scheme as lib/scan.ts so ids line up. */
-export const eventId = (e: EventItem): string => e.url || `${e.name}|${e.dates[0] ?? ""}`;
+// Ids come from lib/ids.ts so the ledger, the scan snapshot and the spam rules
+// all key on the same string. Re-exported here for existing callers.
+export { cfpId, eventId } from "./ids.js";
 
 /** Read a ledger, back-filling any fields missing from older stored ledgers. */
 export async function getLedger(userId: string): Promise<AlertLedger> {

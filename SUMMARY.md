@@ -472,3 +472,22 @@ attrs; AI-SDK `gen_ai.*` spans), so no trace changes were needed. Verified logs 
     too; force-pushes and branch deletion blocked. Approval count deliberately 0 — a solo
     maintainer can't approve their own PR, so requiring 1 would deadlock; bump it when teammates
     start reviewing. Docs note added to AGENTS.md conventions (last direct push to main).
+33. "Some events are spam: paid, or one 'virtual event' listed at 10 different locations by the same
+    person. Detect and remove them, not once but while the agent keeps running." → built a spam
+    filter as a **read-path filter** inside `queryEvents`, so every consumer inherits it on every run
+    (lists, weekly digest, daily scan, per-user alerts) and it also applies to listings that do not
+    exist yet. Two layers: scored heuristics (`cross_posted`, `cross_posted_series`,
+    `virtual_in_city`, `paid`, `promo`; strong signal drops alone, weak needs a second one) plus a
+    durable team-wide rule list (`block`/`allow` by event id, title, organizer, url host or source,
+    where `allow` wins so a false positive can be pinned back). A price tag is deliberately weak,
+    because real conferences charge money. Control surface: a `manage_spam` tool (report, preview,
+    list/block/allow/unblock, admin-only for changes) and a 🚫 Spam button on event alert cards.
+    Validated against the live 229-feed watchlist, which changed the design twice. First, several
+    aggregator calendars listing the *same* Edinburgh meetup looked exactly like cross-posting, so
+    duplicate listings are now folded together (`dedupeEvents`, keeping the copy with the better link)
+    before anything is judged, and a cross-post has to span more than one location. Second, RustConf
+    was dropped because its blurb says "also available online", so the online signal now needs the
+    title or an explicit phrase like "join us on Zoom". Result on live data: 67 listings filtered
+    (one vendor's online series sold into 6 city groups, a cross-posted virtual AI series, paid
+    "networking" webinars) and 82 duplicates folded, with the three known false positives kept.
+    Nothing disappears silently: the daily scan reports the tally and reasons to the ops channel.

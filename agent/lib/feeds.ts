@@ -9,6 +9,13 @@ import { getAllSources } from "./sources.js";
 import { errorAttributes, log } from "./log.js";
 import { OCGROUPS_ENABLED, getOcgroupsEvents } from "./ocgroups.js";
 import { ICAL_ENABLED, getIcalEvents } from "./ical.js";
+import {
+  SPAM_FILTER_ENABLED,
+  classifyEvents,
+  dedupeEvents,
+  toDropped,
+  type DroppedEvent,
+} from "./spam.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -96,6 +103,16 @@ export interface EventQuery {
   withinDays?: number;
   includePast?: boolean;
   limit?: number;
+  /** Skip the spam filter and return everything (for inspecting what gets dropped). */
+  includeSpam?: boolean;
+}
+
+export interface EventQueryResult {
+  events: EventItem[];
+  /** Events the spam filter removed from this result, with the reason for each. */
+  spamDropped: DroppedEvent[];
+  /** Repeat listings of the same event folded together across overlapping calendars. */
+  duplicatesCollapsed: number;
 }
 
 function matchesText(haystack: string, needles?: string[]): boolean {
@@ -172,6 +189,14 @@ export async function queryCfps(query: CfpQuery = {}): Promise<Cfp[]> {
 
 /** Fetch, normalize, filter and sort events across every configured events source. */
 export async function queryEvents(query: EventQuery = {}): Promise<EventItem[]> {
+  return (await queryEventsDetailed(query)).events;
+}
+
+/**
+ * Same as `queryEvents`, but also reports what the spam filter removed — used by
+ * the source scan (to tell the ops channel) and by the spam tools (to review it).
+ */
+export async function queryEventsDetailed(query: EventQuery = {}): Promise<EventQueryResult> {
   const now = Date.now();
   const limit = query.limit ?? 50;
   const sources = await getAllSources("events");
@@ -216,37 +241,61 @@ export async function queryEvents(query: EventQuery = {}): Promise<EventItem[]> 
     events = events.concat(icalEvents.flat());
   }
 
+  // Fold repeat listings of the same event together first: several of our
+  // calendars carry the same local meetup, and left in place those copies look
+  // exactly like cross-posted spam to the classifier below.
+  const deduped = dedupeEvents(events);
+  events = deduped.events;
+
+  // Classify for spam over the *whole* merged set: the cross-posting signal only
+  // exists when you can see the same listing sitting in many calendars at once.
+  const filtering = SPAM_FILTER_ENABLED && !query.includeSpam;
+  const verdicts = filtering ? await classifyEvents(events) : [];
+  let paired = events.map((e, idx) => ({ e, v: verdicts[idx] }));
+
   if (!query.includePast) {
-    events = events.filter((e) => e.daysUntilStart !== null && e.daysUntilStart >= 0);
+    paired = paired.filter(({ e }) => e.daysUntilStart !== null && e.daysUntilStart >= 0);
   }
   if (typeof query.withinDays === "number") {
-    events = events.filter(
-      (e) => e.daysUntilStart !== null && e.daysUntilStart <= query.withinDays!,
+    paired = paired.filter(
+      ({ e }) => e.daysUntilStart !== null && e.daysUntilStart <= query.withinDays!,
     );
   }
-  events = events.filter(
-    (e) =>
+  paired = paired.filter(
+    ({ e }) =>
       matchesText(`${e.name} ${e.location} ${e.tags.join(" ")}`, query.keywords) &&
       matchesText(`${e.location} ${e.country}`, query.locations),
   );
 
-  events.sort((a, b) => {
+  // Split only after the query filters, so the reported drops are the ones that
+  // would otherwise have shown up in *this* answer.
+  const spamDropped: DroppedEvent[] = [];
+  const kept: EventItem[] = [];
+  for (const { e, v } of paired) {
+    if (filtering && v?.spam) spamDropped.push(toDropped(e, v));
+    else kept.push(e);
+  }
+
+  kept.sort((a, b) => {
     const av = a.daysUntilStart ?? Number.POSITIVE_INFINITY;
     const bv = b.daysUntilStart ?? Number.POSITIVE_INFINITY;
     return av - bv;
   });
 
-  const returned = events.slice(0, limit);
+  const returned = kept.slice(0, limit);
   log.info("events queried", {
     "events_helper.query.source_count": sources.length,
     "events_helper.query.ocgroups_enabled": OCGROUPS_ENABLED,
     "events_helper.query.ical_enabled": ICAL_ENABLED,
-    "events_helper.query.matched": events.length,
+    "events_helper.query.matched": kept.length,
     "events_helper.query.returned": returned.length,
+    "events_helper.query.spam_dropped": spamDropped.length,
+    "events_helper.query.spam_filtered": filtering,
+    "events_helper.query.duplicates_collapsed": deduped.collapsed,
     "events_helper.query.keywords": query.keywords,
     "events_helper.query.locations": query.locations,
     "events_helper.query.within_days": query.withinDays,
     "events_helper.query.include_past": query.includePast ?? false,
   });
-  return returned;
+  return { events: returned, spamDropped, duplicatesCollapsed: deduped.collapsed };
 }
