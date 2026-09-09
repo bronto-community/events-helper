@@ -513,3 +513,17 @@ attrs; AI-SDK `gen_ai.*` spans), so no trace changes were needed. Verified logs 
     `BRONTO_API_KEY` and `SLACK_DIGEST_CHANNEL_ID` are all set on the preview target, so any of the
     ten open dependabot PRs would have booted the agent against the real Blob store and the real
     Slack channel on a public URL. Previews are now skipped by an Ignored Build Step.
+35. The Ignored Build Step from the previous entry was written as
+    `[ "$VERCEL_ENV" != "production" ]`, and it was wrong in the most convincing way possible: it
+    suppressed the PR preview exactly as intended, so the first evidence said it worked. It passed
+    for the wrong reason. `VERCEL_ENV` is **not populated in the Ignored Build Step**, so the test
+    compared an empty string and skipped *everything*. Merging the previous PR therefore canceled its
+    own production deploy: `target=production`, `ref=main`, `state=CANCELED`, no error message
+    anywhere, because a skipped build is a success as far as Vercel is concerned. The condition now
+    keys off `VERCEL_GIT_COMMIT_REF`, which that step does populate, keeping the `VERCEL_ENV` arm
+    only as a fallback. The lesson worth keeping: a guard that suppresses the thing you were
+    watching for is not evidence the guard is correct, only that it fires. Verifying it also *lets
+    the right thing through* is the other half, and skipping that half cost a silent
+    non-deployment. Confirmed the rest of the chain afterwards by reading the Blob key the notifier
+    writes (`events-helper/deploy/last-production.json`), which only exists if the webhook reached
+    the route and passed signature verification.

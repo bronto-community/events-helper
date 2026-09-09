@@ -230,11 +230,22 @@ merge commit itself. There is no deploy workflow in GitHub Actions and no `VERCE
 CI (`ci.yml`) only gates the PR with typecheck + gitleaks.
 
 **Preview deployments are off.** The project's *Ignored Build Step* is
-`[ "$VERCEL_ENV" != "production" ]`, which exits 0 (skip) for anything that is not production. This
-is deliberate: `BLOB_READ_WRITE_TOKEN`, `BRONTO_API_KEY`, `SLACK_DIGEST_CHANNEL_ID` and the admin ids
-are set on the preview target too, so a preview would boot against the **real** Blob store and the
-real Slack channel on a publicly reachable URL (SSO protection is off). Re-scope those env vars
-before turning previews back on.
+
+```sh
+if [ "$VERCEL_ENV" = "production" ] || [ "$VERCEL_GIT_COMMIT_REF" = "main" ]; then exit 1; else exit 0; fi
+```
+
+(exit 1 = build, exit 0 = skip). This is deliberate: `BLOB_READ_WRITE_TOKEN`, `BRONTO_API_KEY`,
+`SLACK_DIGEST_CHANNEL_ID` and the admin ids are set on the preview target too, so a preview would
+boot against the **real** Blob store and the real Slack channel on a publicly reachable URL (SSO
+protection is off). Re-scope those env vars before turning previews back on.
+
+**Do not simplify that condition to `[ "$VERCEL_ENV" != "production" ]`.** It reads correctly and it
+does suppress previews, which makes it look like it works — but `VERCEL_ENV` is **not populated in
+the Ignored Build Step**, so the comparison sees an empty string and skips *everything*, production
+included. That exact mistake silently canceled the production deploy of commit `5b628ba`
+(`target=production`, `ref=main`, `state=CANCELED`, no error). The branch check is the part that
+actually does the work; the `VERCEL_ENV` arm is only a belt-and-braces fallback.
 
 **The operator notice comes from the agent, not from CI.** A team webhook (Settings → Webhooks,
 scoped to this project, event *Deployment Succeeded*) POSTs to `/vercel/deploy-hook`, which

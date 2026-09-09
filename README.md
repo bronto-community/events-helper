@@ -77,9 +77,16 @@ npm run typecheck
 
 **Merging to `main` is what deploys.** The Vercel project is connected to the GitHub repo with
 production branch `main`, so Vercel builds and promotes the merge commit. Preview deployments are
-switched off through the project's *Ignored Build Step* (`[ "$VERCEL_ENV" != "production" ]`),
-because several env vars are shared with the preview target and a preview would otherwise run
-against the real Blob store and Slack channel.
+switched off through the project's *Ignored Build Step*, because several env vars are shared with
+the preview target and a preview would otherwise run against the real Blob store and Slack channel:
+
+```sh
+if [ "$VERCEL_ENV" = "production" ] || [ "$VERCEL_GIT_COMMIT_REF" = "main" ]; then exit 1; else exit 0; fi
+```
+
+Exit 1 means build, exit 0 means skip. The branch check is what does the work: `VERCEL_ENV` is not
+populated in the Ignored Build Step, so a condition written only against it skips every build,
+production included.
 
 Deploying by hand is the escape hatch:
 
