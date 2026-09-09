@@ -1,0 +1,75 @@
+name: Deploy
+
+# Production deploys happen here, on every merge to main (main is PR-only, so a
+# merge is the trigger). `npm run deploy` from a local working tree still works
+# and stays the escape hatch when CI is unavailable.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Never run two production deploys at once, and never cancel one mid-flight.
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      # Project identifiers, not secrets (they are in AGENTS.md too). CI has no
+      # .vercel/ link — it is gitignored — so the CLI reads them from here.
+      VERCEL_ORG_ID: team_1PE5RXwfMDJs68iRICHMfAgy
+      VERCEL_PROJECT_ID: prj_UVBCFToFKHcBiVVGdGrCF9V21jto
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      # Pinned so a new CLI release cannot change a deploy without a commit.
+      VERCEL_CLI_VERSION: 59.13.1
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0 # full history so the change summary can diff against the previous main
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Check the deploy token is configured
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::error::VERCEL_TOKEN secret is not set. Add it under Settings → Secrets and variables → Actions (see README)."
+            exit 1
+          fi
+
+      - run: npm ci
+
+      # Cheap insurance: the CI workflow runs in parallel, so without this a
+      # non-compiling tree could still reach production.
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Install Vercel CLI
+        run: npm i -g "vercel@${VERCEL_CLI_VERSION}"
+
+      # The Slack deploy notice needs a project OIDC token, which only the CLI
+      # can mint (`vercel env pull` writes VERCEL_OIDC_TOKEN into the file).
+      # Values stay in this ephemeral runner and are never printed. Best-effort:
+      # the deploy itself does not depend on it.
+      - name: Pull project env for the deploy notice
+        continue-on-error: true
+        run: vercel env pull .env.local --environment=production --yes --token "$VERCEL_TOKEN"
+
+      - name: Deploy to production and notify
+        env:
+          # Base for the "changes since last deploy" summary. Empty on
+          # workflow_dispatch, which then falls back to the latest commit.
+          DEPLOY_PREV_SHA: ${{ github.event.before }}
+        run: npm run deploy

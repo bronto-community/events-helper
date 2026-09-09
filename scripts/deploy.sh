@@ -2,11 +2,22 @@
 # Deploy events-helper to Vercel production, then notify the operator on Slack
 # with a summary of the changes since the last deploy.
 #
+# Runs in two places, with the same behaviour:
+#   • locally    — `npm run deploy`, using your logged-in Vercel CLI session and
+#                  `.env.local` (from `vercel env pull`).
+#   • in CI      — .github/workflows/deploy.yml on every push to main.
+#
 # Config (env or .env.local):
 #   EVENTS_HELPER_DEPLOY_NOTIFY_CHANNEL  Slack channel id (Cxxxx) or the operator's
 #                                        user id (Uxxxx) to DM. If unset, notify is skipped.
 #   SLACK_CONNECTOR                      Vercel Connect Slack connector uid
 #                                        (default: slack/bronto-events-helper)
+#   VERCEL_TOKEN                         CI only: deploy non-interactively. Pair it with
+#                                        VERCEL_ORG_ID + VERCEL_PROJECT_ID, since .vercel/
+#                                        is gitignored and CI has no project link.
+#   DEPLOY_PREV_SHA                      CI only: base for the change summary (the push's
+#                                        previous main sha). Locally this comes from
+#                                        .last-deploy-sha instead.
 #
 # The bot token is fetched at runtime via Vercel Connect and is never printed.
 
@@ -20,7 +31,9 @@ NOTIFY="${EVENTS_HELPER_DEPLOY_NOTIFY_CHANNEL:-}"
 # --- build the change summary from git --------------------------------------
 HEAD_SHORT=$(git rev-parse --short HEAD)
 HEAD_FULL=$(git rev-parse HEAD)
-PREV=$(cat .last-deploy-sha 2>/dev/null || true)
+# CI passes the previous main sha directly; locally we diff against whatever we
+# deployed last from this machine.
+PREV="${DEPLOY_PREV_SHA:-$(cat .last-deploy-sha 2>/dev/null || true)}"
 if [ -n "$PREV" ] && git cat-file -e "${PREV}^{commit}" 2>/dev/null && [ "$PREV" != "$HEAD_FULL" ]; then
   CHANGES=$(git log --no-merges --pretty='• %s (%h)' "${PREV}..HEAD")
   STAT=$(git diff --shortstat "$PREV" HEAD)
@@ -36,7 +49,14 @@ DIRTY=""
 # `vcs.ref.head.revision` as this deployment log (see agent/lib/deploy.ts).
 echo "▶ deploying to production…"
 set +e
-OUT=$(VERCEL_USE_EXPERIMENTAL_FRAMEWORKS=1 vercel deploy --prod -e "EVENTS_HELPER_COMMIT=$HEAD_FULL" 2>&1)
+if [ -n "${VERCEL_TOKEN:-}" ]; then
+  # CI: authenticate with the token and never prompt. The token stays in the
+  # environment; it is passed as an argument to the CLI only, never echoed.
+  OUT=$(VERCEL_USE_EXPERIMENTAL_FRAMEWORKS=1 vercel deploy --prod --yes \
+    --token "$VERCEL_TOKEN" -e "EVENTS_HELPER_COMMIT=$HEAD_FULL" 2>&1)
+else
+  OUT=$(VERCEL_USE_EXPERIMENTAL_FRAMEWORKS=1 vercel deploy --prod -e "EVENTS_HELPER_COMMIT=$HEAD_FULL" 2>&1)
+fi
 CODE=$?
 set -e
 printf '%s\n' "$OUT" | tail -3

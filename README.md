@@ -75,6 +75,24 @@ npm run typecheck
 
 ## Deploy to Vercel
 
+**Merging to `main` deploys to production.** `.github/workflows/deploy.yml` type-checks, deploys,
+stamps the commit, and posts the Slack notice — the same `npm run deploy` wrapper a laptop runs. The
+project has no Vercel Git integration, so this workflow is the only automatic path (and there are no
+preview deployments).
+
+One-time setup for that workflow:
+
+1. Create a Vercel token: **Account Settings → Tokens**, scoped to the `brontoio` team.
+2. Add it to the repo as **Settings → Secrets and variables → Actions → New repository secret**,
+   named `VERCEL_TOKEN`. Without it the workflow fails fast with a message saying so.
+3. Optional: add `BRONTO_API_KEY` as a second secret if you want the deployment log in Bronto from
+   CI runs too (sensitive Vercel env vars can't be pulled, so CI can't read it from the project).
+
+`VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` are plain env in the workflow — they're identifiers, not
+secrets, and `.vercel/` is gitignored so CI has no project link without them.
+
+Deploying by hand does the same thing, and is the escape hatch when CI is unavailable:
+
 ```bash
 vercel link          # first time: link/create the project
 npm run deploy       # summarize changes → deploy → notify the operator on Slack
@@ -223,7 +241,7 @@ user when a conversation is getting large.
 | Command | What it does |
 | --- | --- |
 | `npm run typecheck` | `tsc` — type-check the whole agent |
-| `npm run deploy` | Deploy to prod + notify the operator on Slack with a change summary |
+| `npm run deploy` | Deploy to prod + notify the operator on Slack with a change summary (also what CI runs) |
 | `npm exec -- eve dev` | Interactive dev REPL |
 | `npm exec -- eve dev --no-ui` | Headless dev server (HTTP API) |
 | `npm run build` / `npm start` | `eve build` / `eve start` |

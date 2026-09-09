@@ -491,3 +491,15 @@ attrs; AI-SDK `gen_ai.*` spans), so no trace changes were needed. Verified logs 
     (one vendor's online series sold into 6 city groups, a cross-posted virtual AI series, paid
     "networking" webinars) and 82 duplicates folded, with the three known false positives kept.
     Nothing disappears silently: the daily scan reports the tally and reasons to the ops channel.
+32. "Is a merged PR auto deployed?" → no: the Vercel project has no Git integration, so nothing had
+    deployed in 30 days despite three merges, and production was only current because I had deployed
+    the branch by hand before the merge (its provenance stamp pointed at a rebased-away commit).
+    Added `.github/workflows/deploy.yml`: on every push to `main` it type-checks and runs the same
+    `npm run deploy` wrapper, so CI and a laptop produce identical deploys. Rather than duplicate the
+    logic in YAML, `scripts/deploy.sh` became one code path that branches on env: `VERCEL_TOKEN` set
+    means CI (authenticate with the token, pass `--yes`), and `DEPLOY_PREV_SHA` overrides the
+    change-summary base with the push's previous main sha, since `.last-deploy-sha` is per-machine.
+    The Slack notice needs a project OIDC token that only the CLI can mint, so CI gets it from a
+    `vercel env pull` step, kept `continue-on-error` because the notice is best-effort. Needs one
+    repo secret, `VERCEL_TOKEN`; the org and project ids are plain env, being identifiers rather than
+    secrets. Kept the manual path working as the escape hatch.

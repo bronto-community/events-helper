@@ -62,7 +62,8 @@ agent/
     log.ts                 # structured, trace-correlated logging (traceId/spanId from active span)
 ```
 
-Plus `scripts/deploy.sh` (deploy + operator notification), `scripts/notify-deploy.mjs` (Slack post
+Plus `.github/workflows/deploy.yml` (auto-deploy on merge to `main`), `scripts/deploy.sh`
+(deploy + operator notification, one path for CI and local), `scripts/notify-deploy.mjs` (Slack post
 via Connect SDK), and `scripts/precommit.sh` (gitleaks + typecheck + docs-sync).
 
 ## Key decisions (why it's built this way)
@@ -213,27 +214,41 @@ All telemetry — **logs, metrics, and traces** — MUST follow OpenTelemetry se
   credential (`AI_GATEWAY_API_KEY` or `eve link`).
 - **`main` is protected — all changes land via pull request.** Direct pushes (admins included) are
   blocked; open a branch + PR and merge once the CI `check` (typecheck + gitleaks) passes. No
-  review-approval count is required (solo-maintainer setup) — raise it when the team grows. Note
-  `npm run deploy` deploys the local working tree, independent of git push; merge the PR first so
-  production matches `main`.
+  review-approval count is required (solo-maintainer setup) — raise it when the team grows.
+  **Merging the PR is what deploys**: `.github/workflows/deploy.yml` runs on every push to `main`.
+  `npm run deploy` from a working tree still deploys, independent of git, and is the escape hatch.
 
 ## Deploy
 
 Standing instruction from the owner: **redeploy to production automatically after changes that
 should go live** (no per-deploy confirmation needed).
 
-Deploy through the wrapper so the operator is notified with a change summary:
+**Merging to `main` deploys itself** — `.github/workflows/deploy.yml` (push to `main` +
+`workflow_dispatch`) runs the same `npm run deploy` wrapper, so CI and a laptop produce identical
+deploys: same typecheck gate, same `EVENTS_HELPER_COMMIT` stamp, same Slack notice. There is **no
+Vercel Git integration** on the project (no auto-deploy from Vercel's side, no preview deployments);
+this workflow is the only automatic path. It needs one repo secret, `VERCEL_TOKEN`; `VERCEL_ORG_ID`
+and `VERCEL_PROJECT_ID` are plain env in the workflow, since `.vercel/` is gitignored and neither is
+secret. `concurrency: production-deploy` keeps two deploys from racing.
+
+Deploying by hand does the same thing, and is what to use when CI is unavailable:
 
 ```bash
 npm run deploy   # scripts/deploy.sh: summary → deploy → Slack DM to the operator
 ```
 
-It diffs `git` from the last recorded deploy (`.last-deploy-sha`, gitignored), deploys, then posts
+The script is one code path for both callers, branching only on env: `VERCEL_TOKEN` set means CI, so
+it authenticates with the token and passes `--yes`; `DEPLOY_PREV_SHA` (CI passes
+`github.event.before`) overrides the change-summary base. It diffs `git` from the last recorded
+deploy (`.last-deploy-sha`, gitignored — CI uses `DEPLOY_PREV_SHA` instead), deploys, then posts
 the summary to `EVENTS_HELPER_DEPLOY_NOTIFY_CHANNEL` via `scripts/notify-deploy.mjs`. That helper
 uses the `@vercel/connect` **SDK** with the OIDC token from env (the CLI cannot mint the app-subject
 Slack token — only the runtime/OIDC can). Notification is **best-effort**: if `VERCEL_OIDC_TOKEN` is
 missing/expired (refresh with `vercel env pull`), the deploy still succeeds and the notice is
-skipped. The raw `VERCEL_USE_EXPERIMENTAL_FRAMEWORKS=1 vercel deploy --prod` also works but never
+skipped. In CI the token comes from a `vercel env pull` step, which is `continue-on-error` for the
+same reason. Sensitive project vars are not pullable, so if `BRONTO_API_KEY` is absent in CI the
+deployment log to Bronto is skipped while the Slack notice still posts; add it as a repo secret to
+get both. The raw `VERCEL_USE_EXPERIMENTAL_FRAMEWORKS=1 vercel deploy --prod` also works but never
 notifies.
 
 Vercel project: `brontoio/events-helper` (team `brontoio`, project `prj_UVBCFToFKHcBiVVGdGrCF9V21jto`),
