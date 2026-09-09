@@ -46,16 +46,89 @@ function subject(message: string | undefined): string {
   return line && line.length > 0 ? line : "(no commit message)";
 }
 
-function buildText(ev: DeploymentEvent, previousCommit: string | undefined): string {
-  const parts = [`*events-helper deployed to production*`, subject(ev.commitMessage)];
-  const refs: string[] = [`\`${short(ev.commit)}\``];
-  if (ev.branch) refs.push(`on \`${ev.branch}\``);
-  if (previousCommit && ev.commit && previousCommit !== ev.commit) {
-    refs.push(`<${REPO_URL}/compare/${previousCommit}...${ev.commit}|what changed>`);
+/** Owner/repo path for the GitHub API, derived from the repo url. */
+const REPO_SLUG = (() => {
+  try {
+    return new URL(REPO_URL).pathname.replace(/^\/|\/$/g, "");
+  } catch {
+    return "";
   }
+})();
+
+const MAX_BULLETS = 10;
+
+type CompareSummary = { bullets: string[]; hiddenCount: number; stat: string };
+
+/**
+ * The commit list between two shas, from GitHub's compare API.
+ *
+ * The runtime has no git checkout, so this is how the notice gets an inline
+ * "changes since last deploy" rather than only a link. Best-effort by design:
+ * unauthenticated GitHub allows 60 requests an hour per IP, which deploy volume
+ * never approaches, but a rate-limit or a slow response must never hold up (or
+ * lose) a deploy notice — callers fall back to the bare compare link.
+ */
+async function fetchCompare(base: string, head: string): Promise<CompareSummary | null> {
+  if (!REPO_SLUG) return null;
+  try {
+    const res = await fetch(`https://api.github.com/repos/${REPO_SLUG}/compare/${base}...${head}`, {
+      headers: {
+        accept: "application/vnd.github+json",
+        "user-agent": "events-helper-deploy-notify",
+      },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) {
+      log.warn("github compare lookup failed", { "http.response.status_code": res.status });
+      return null;
+    }
+    const body = (await res.json()) as {
+      commits?: Array<{ sha?: string; parents?: unknown[]; commit?: { message?: string } }>;
+      files?: Array<{ additions?: number; deletions?: number }>;
+    };
+    // Drop merge commits, matching what `git log --no-merges` used to show: the
+    // merge of a PR restates its branch, so listing both is noise.
+    const commits = (body.commits ?? []).filter((c) => (c.parents?.length ?? 1) <= 1);
+    if (commits.length === 0) return null;
+    const shown = commits.slice(-MAX_BULLETS).reverse();
+    const bullets = shown.map((c) => `• ${subject(c.commit?.message)} (${short(c.sha)})`);
+    const files = body.files ?? [];
+    const additions = files.reduce((n, f) => n + (f.additions ?? 0), 0);
+    const deletions = files.reduce((n, f) => n + (f.deletions ?? 0), 0);
+    const stat = `${files.length} file${files.length === 1 ? "" : "s"} changed, ${additions} insertion${
+      additions === 1 ? "" : "s"
+    }(+), ${deletions} deletion${deletions === 1 ? "" : "s"}(-)`;
+    return { bullets, hiddenCount: Math.max(0, commits.length - shown.length), stat };
+  } catch (err) {
+    log.warn("github compare lookup threw", errorAttributes(err));
+    return null;
+  }
+}
+
+async function buildText(ev: DeploymentEvent, previousCommit: string | undefined): Promise<string> {
+  const hasRange = Boolean(previousCommit && ev.commit && previousCommit !== ev.commit);
+  const compare = hasRange ? await fetchCompare(previousCommit as string, ev.commit as string) : null;
+
+  const parts = [`*events-helper deployed to production*`];
+  const head = [`\`${short(ev.commit)}\``];
+  if (ev.branch) head.push(`on \`${ev.branch}\``);
+  parts.push(head.join(" "));
+
+  if (compare) {
+    parts.push("", "*Changes since last deploy:*", ...compare.bullets);
+    if (compare.hiddenCount > 0) parts.push(`• …and ${compare.hiddenCount} more`);
+    parts.push("", `_${compare.stat}_`);
+  } else {
+    // No baseline yet, or GitHub was unreachable: name the commit itself instead.
+    parts.push(subject(ev.commitMessage));
+  }
+
+  const refs: string[] = [];
+  if (hasRange) refs.push(`<${REPO_URL}/compare/${previousCommit}...${ev.commit}|what changed>`);
   if (ev.inspectorUrl) refs.push(`<${ev.inspectorUrl}|deployment>`);
   else if (ev.url) refs.push(`<https://${ev.url}|deployment>`);
-  parts.push(refs.join(" · "));
+  if (refs.length > 0) parts.push(refs.join(" · "));
+
   return parts.join("\n");
 }
 
@@ -134,7 +207,7 @@ export async function notifyProductionDeploy(
     return { notified: false, reason: "already-notified" };
   }
 
-  const text = buildText(ev, previous.commit);
+  const text = await buildText(ev, previous.commit);
 
   // Record before notifying: a redelivery of the same deployment should stay quiet
   // even if Slack is having a bad day. Losing one notice beats a duplicate storm.
