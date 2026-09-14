@@ -78,6 +78,15 @@ typecheck + docs-sync).
   PERSONAL overlay (add + exclude). `effective = (global ∪ personal.add) − personal.exclude`.
   Caller identity comes from `ctx.session.auth.current` (never model input). Admins gated by
   `EVENTS_HELPER_ADMIN_IDS` (open until set). **Sources are a shared team catalog.**
+- **The weekly digest is a channel handoff, so the model's reply _is_ the Slack post.**
+  `schedules/cfp-digest.ts` calls `receive(slack, { target: { channelId } })`; the Slack channel
+  posts whatever the turn finishes with, verbatim. There is **no post-to-Slack tool** for the model
+  (`lib/slack-notify.ts` is server-side only, for the alerts, scan and deploy notices). Never write
+  "post the digest" in a prompt or instruction as if it named an action the model performs: told to
+  post with no way to post, it hedges, and for two weeks it appended a footer to the live digest in
+  `#gtm` offering to send the message it had in fact just sent. The prompt now says the reply is the
+  message and bans delivery commentary; `instructions.md` carries the same rule for every Slack turn.
+  Conditional silence is a first-class outcome — eve lets a handoff turn finish with no reply text.
 - **Token-usage awareness** (`lib/usage.ts` + `hooks/usage.ts` + `instructions/usage.ts`).
   Per-session ceilings set on `defineAgent({ limits })` (env-tunable) fail the next call with
   `SESSION_TOKEN_LIMIT_REACHED`. The hook accumulates `step.completed` usage into durable session
