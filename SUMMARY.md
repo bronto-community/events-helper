@@ -557,3 +557,17 @@ attrs; AI-SDK `gen_ai.*` spans), so no trace changes were needed. Verified logs 
     along with the blast radius, since the digest's cron posts to `#gtm` for real. The safer check,
     used here, is to mention the bot in the private ops channel: same instructions, same model, no
     audience — and it came back with no footer.
+38. "In the messages in general it would also be important to see the weekdays." → a bare
+    `2026-09-18` is precise and useless for planning: you cannot tell whether a deadline lands on a
+    Friday afternoon or a Sunday. The tempting fix was one line in the instructions asking for
+    weekdays, and it would have been the wrong one — the model would then *derive* each weekday, and
+    date arithmetic is exactly the kind of thing it does confidently and occasionally wrongly. A
+    wrong weekday next to a right date is worse than no weekday, because it looks authoritative.
+    So the weekday is computed in code and handed over ready to print: `lib/dates.ts` labels dates
+    at the single point in `queryCfps`/`queryEventsDetailed` that every consumer passes through, the
+    deterministic builders (alert cards, source scan) format through the same helpers, and the
+    instructions now say to print the label and never work a weekday out. Parsing is pinned to UTC
+    on purpose: a date-only string carries no timezone, and a local parse prints the day before
+    anywhere west of Greenwich — checked rather than assumed, `2026-09-18` comes out as Thu under
+    `TZ=Pacific/Honolulu`. Vercel runs in UTC, but `eve dev` on a laptop does not, and a weekday that
+    depends on who is reading it is worse than the problem being solved.

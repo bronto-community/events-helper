@@ -73,6 +73,10 @@ export interface Cfp {
   status: string;
   /** ISO date strings for the event itself. */
   eventDates: string[];
+  /** `deadline` with its weekday, ready to print (e.g. `Fri 2026-09-18`). */
+  deadlineLabel?: string;
+  /** `eventDates` as one weekday-carrying label (e.g. `Mon 2027-03-15 → Thu 2027-03-18`). */
+  eventDatesLabel?: string;
   cfpUrl: string;
   eventUrl: string;
   source: string;
@@ -84,6 +88,8 @@ export interface EventItem {
   country: string;
   /** ISO date strings for the event. */
   dates: string[];
+  /** `dates` as one weekday-carrying label (e.g. `Sat 2026-11-14`). */
+  datesLabel?: string;
   /** Days until the event starts from now (negative = past). */
   daysUntilStart: number | null;
   status: string;

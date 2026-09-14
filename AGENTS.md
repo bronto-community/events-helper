@@ -57,6 +57,7 @@ agent/
     deploy.ts              # deployment provenance (semconv vcs.ref.head.revision / deployment.id) for traces+logs
     alerts.ts              # per-user opt-in alert ledger + computeUserAlerts (CfP new/closing-soon) + computeUserEventAlerts (new events, baselined)
     cards.ts               # Slack Block Kit builders for interactive CfP + event alert cards
+    dates.ts               # weekday-carrying date labels (UTC-pinned) for every user-facing date
     slack-notify.ts        # post text or Block Kit to a Slack channel/DM via the Connect app token
     deploy-notify.ts       # announce a production deploy: Slack notice + Bronto deployment event
     interests.ts           # global/personal/effective resolution
@@ -87,6 +88,15 @@ typecheck + docs-sync).
   `#gtm` offering to send the message it had in fact just sent. The prompt now says the reply is the
   message and bans delivery commentary; `instructions.md` carries the same rule for every Slack turn.
   Conditional silence is a first-class outcome — eve lets a handoff turn finish with no reply text.
+- **Every user-facing date carries its weekday, and the model never derives one** (`lib/dates.ts`).
+  A bare `2026-09-18` is precise but hard to plan against. `queryCfps`/`queryEventsDetailed` therefore
+  attach `deadlineLabel` / `eventDatesLabel` / `datesLabel` at the single point every consumer flows
+  through, and the deterministic builders (`lib/cards.ts`, `lib/scan.ts`) call `withWeekday` /
+  `dateRangeLabel` directly. The instructions tell the model to print those labels and **never work a
+  weekday out itself**: that is arithmetic it will sometimes get wrong, and a confident wrong weekday
+  beside a correct date is worse than no weekday. Parsing is **pinned to UTC** — a date-only string
+  has no timezone, so a local parse prints the previous day west of Greenwich (verified: `2026-09-18`
+  reads as Thu in `TZ=Pacific/Honolulu`). Vercel runs UTC, but `eve dev` on a laptop does not.
 - **Token-usage awareness** (`lib/usage.ts` + `hooks/usage.ts` + `instructions/usage.ts`).
   Per-session ceilings set on `defineAgent({ limits })` (env-tunable) fail the next call with
   `SESSION_TOKEN_LIMIT_REACHED`. The hook accumulates `step.completed` usage into durable session

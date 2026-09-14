@@ -1,4 +1,5 @@
 import { cfpId, eventId } from "./alerts.js";
+import { dateRangeLabel, withWeekday } from "./dates.js";
 import type { Cfp, EventItem } from "./types.js";
 
 // Raw Slack Block Kit builders for CfP alert cards. We build blocks directly
@@ -48,9 +49,10 @@ export function cfpAlertBlocks(cfp: Cfp, opts: { reminder?: boolean } = {}): {
 } {
   const tag = opts.reminder ? "⏰ *Closing soon*" : "🆕 *New CfP*";
   const headline = `${tag} — *${cfp.event}*`;
-  const meta = `📅 Deadline: *${cfp.deadline ?? "unknown"}*${daysLeft(cfp.daysUntilDeadline)}${
+  const eventWhen = dateRangeLabel(cfp.eventDates);
+  const meta = `📅 Deadline: *${withWeekday(cfp.deadline) || "unknown"}*${daysLeft(cfp.daysUntilDeadline)}${
     cfp.location ? ` · 📍 ${cfp.location}` : ""
-  }${cfp.eventDates[0] ? ` · event ${cfp.eventDates[0]}` : ""}`;
+  }${eventWhen ? ` · event ${eventWhen}` : ""}`;
   const ref = encodeCfpRef(cfp);
 
   const elements: Block[] = [];
@@ -73,7 +75,9 @@ export function cfpAlertBlocks(cfp: Cfp, opts: { reminder?: boolean } = {}): {
       { type: "section", text: { type: "mrkdwn", text: `${headline}\n${meta}` } },
       { type: "actions", elements },
     ],
-    fallbackText: `${opts.reminder ? "Closing soon" : "New CfP"}: ${cfp.event} — deadline ${cfp.deadline ?? "unknown"}`,
+    fallbackText: `${opts.reminder ? "Closing soon" : "New CfP"}: ${cfp.event} — deadline ${
+      withWeekday(cfp.deadline) || "unknown"
+    }`,
   };
 }
 
@@ -86,7 +90,7 @@ function startsIn(days: number | null): string {
 /** Interactive alert card for one newly-announced event (e.g. from a watched Meetup group). */
 export function eventAlertBlocks(e: EventItem): { blocks: Block[]; fallbackText: string } {
   const headline = `🆕 *New event* — *${e.name}*`;
-  const when = e.dates[0] ?? "date TBD";
+  const when = dateRangeLabel(e.dates) || "date TBD";
   const meta = `📅 ${when}${startsIn(e.daysUntilStart)}${e.location ? ` · 📍 ${e.location}` : ""}${
     e.tags.length ? ` · ${e.tags.slice(0, 4).join(", ")}` : ""
   } · _${e.source}_`;

@@ -1,3 +1,4 @@
+import { dateRangeLabel, withWeekday } from "./dates.js";
 import { queryCfps, queryEventsDetailed } from "./feeds.js";
 import { getAllSources } from "./sources.js";
 import { OCGROUPS_ENABLED } from "./ocgroups.js";
@@ -73,7 +74,7 @@ function formatMessage(r: Omit<ScanResult, "message">): string {
     lines.push("", `*New CfPs (${r.newCfps.length}):*`);
     for (const c of r.newCfps.slice(0, MAX_LIST)) {
       const days = c.daysUntilDeadline !== null ? ` (${c.daysUntilDeadline}d)` : "";
-      lines.push(`• ${c.deadline ?? "?"}${days} — ${c.event} — ${c.cfpUrl}`);
+      lines.push(`• ${withWeekday(c.deadline) || "?"}${days} — ${c.event} — ${c.cfpUrl}`);
     }
     if (r.newCfps.length > MAX_LIST) lines.push(`• …and ${r.newCfps.length - MAX_LIST} more`);
   }
@@ -81,7 +82,7 @@ function formatMessage(r: Omit<ScanResult, "message">): string {
   if (r.newEvents.length > 0) {
     lines.push("", `*New events (${r.newEvents.length}):*`);
     for (const e of r.newEvents.slice(0, MAX_LIST)) {
-      lines.push(`• ${e.dates[0] ?? "?"} — ${e.name} — ${e.location || ""} — ${e.url}`);
+      lines.push(`• ${dateRangeLabel(e.dates) || "?"} — ${e.name} — ${e.location || ""} — ${e.url}`);
     }
     if (r.newEvents.length > MAX_LIST) lines.push(`• …and ${r.newEvents.length - MAX_LIST} more`);
   }

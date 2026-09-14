@@ -8,7 +8,8 @@ export default defineTool({
     "By default only events that have not yet started are returned. " +
     "Pass the user's interest keywords/locations (from manage_interests) to focus the list. " +
     "Listings that look like spam are filtered out automatically and reported in 'spamDropped' — " +
-    "use manage_spam to review or change that.",
+    "use manage_spam to review or change that. " +
+    "Print dates from 'datesLabel', which already carries the weekday.",
   inputSchema: z.object({
     keywords: z
       .array(z.string())
