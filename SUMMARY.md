@@ -536,3 +536,17 @@ attrs; AI-SDK `gen_ai.*` spans), so no trace changes were needed. Verified logs 
     strictly better than either version. The call is best-effort with a 5s timeout: on a rate-limit
     or an outage the notice falls back to naming the head commit and still posts, because a deploy
     notice that arrives late or not at all is worse than one without a commit list.
+37. "The digest always ends on a message saying it was not auto-posted." → it did, every week, in
+    slightly different words each time, appended to the digest the bot had just posted into `#gtm`.
+    The cause was a prompt that read as an instruction the model could not carry out. The weekly
+    digest is a **channel handoff**: `receive(slack, { target: { channelId } })` starts a turn whose
+    reply the Slack channel posts verbatim. There is no post-to-Slack tool in the toolset, because
+    the model never needs one. But the schedule prompt said "**Post** a short, scannable digest",
+    and `instructions.md` claimed "you can also post to Slack on request" — so the model went
+    looking for a way to post, found none, wrote the digest anyway, and hedged with a footer
+    offering to send it. Every part of that is reasonable behaviour given what it had been told.
+    Fixed at the source rather than by filtering the output: the prompt now states that the reply
+    *is* the message and bans preambles, sign-offs and delivery commentary, and `instructions.md`
+    carries the same rule for every Slack turn instead of only the digest, since a mention or an
+    alert reply can go the same way. A stripper on the way out would have hidden a model that still
+    believed it had failed to post, and that belief leaks in other directions.
