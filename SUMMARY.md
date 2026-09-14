@@ -550,3 +550,10 @@ attrs; AI-SDK `gen_ai.*` spans), so no trace changes were needed. Verified logs 
     carries the same rule for every Slack turn instead of only the digest, since a mention or an
     alert reply can go the same way. A stripper on the way out would have hidden a model that still
     believed it had failed to post, and that belief leaks in other directions.
+    Verifying it turned up something worth writing down: a production schedule *can* be triggered by
+    hand, contrary to the obvious reading that eve's dev-only dispatch route is the only way in.
+    Every schedule shares one unguessable per-build cron path, selected by the
+    `x-vercel-cron-schedule` header, readable from the deployment record. Documented in `AGENTS.md`
+    along with the blast radius, since the digest's cron posts to `#gtm` for real. The safer check,
+    used here, is to mention the bot in the private ops channel: same instructions, same model, no
+    audience — and it came back with no footer.

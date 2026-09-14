@@ -291,6 +291,38 @@ channels after any fresh Connect (re)install. Note that **authored channel route
 they declare**, not under eve's reserved `/eve/v1` prefix, which is why the webhook lives at
 `/vercel/deploy-hook`. See `README.md` for the full env-var list and one-time Connect setup.
 
+## Trigger a schedule in production
+
+`eve dev` has a dispatch route (`POST /eve/v1/dev/schedules/:schedule`) but production builds never
+mount it, so it looks like a scheduled run can only be observed by waiting for its cron. It can't —
+there is a supported way in.
+
+Production turns every `defineSchedule` into a Vercel Cron Job, and eve points them all at **one
+unguessable handler path** under `/eve/v1/cron/<random>`, generated per build. The path itself is the
+credential (that is why eve does not require `CRON_SECRET`), and the individual schedule is selected
+by the `x-vercel-cron-schedule` header, not by the path. Read the path off the **deployment** — the
+project-level crons endpoint 404s:
+
+```bash
+TOKEN=$(node -e "console.log(require(process.env.HOME+'/Library/Application Support/com.vercel.cli/auth.json').token)")
+TEAM=team_1PE5RXwfMDJs68iRICHMfAgy
+DEP=$(curl -s -H "Authorization: Bearer $TOKEN" \
+  "https://api.vercel.com/v6/deployments?projectId=prj_UVBCFToFKHcBiVVGdGrCF9V21jto&teamId=$TEAM&target=production&limit=1" \
+  | node -pe "JSON.parse(require('fs').readFileSync(0)).deployments[0].uid")
+curl -s -H "Authorization: Bearer $TOKEN" "https://api.vercel.com/v13/deployments/$DEP?teamId=$TEAM" \
+  | node -pe "JSON.stringify(JSON.parse(require('fs').readFileSync(0)).crons, null, 1)"
+# -> [{ path: "/eve/v1/cron/<random>", schedule: "30 6 * * *" }, { …, "0 8 * * 1" }, { …, "0 7 * * *" }]
+```
+
+Then POST that path on the production domain with the schedule's own expression in the header
+(`0 8 * * 1` = weekly digest, `30 6 * * *` = per-user alerts, `0 7 * * *` = source scan).
+
+**The path rotates on every build**, so fetch it fresh rather than saving one. And mind the blast
+radius: these are the real schedules, so firing the digest posts into `#gtm` and firing the alerts
+DMs every subscriber. To exercise *digest behaviour* without spending the team's attention, mention
+`@brontoeventshelper` in the private ops channel instead — same instructions, same model, no
+audience.
+
 ## Environment variables
 
 | Var | Purpose |
