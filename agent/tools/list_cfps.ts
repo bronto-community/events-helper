@@ -7,7 +7,8 @@ export default defineTool({
     "List open Call-for-Papers (CfPs) from the configured sources, sorted by soonest deadline. " +
     "By default only CfPs whose deadline is still in the future are returned. " +
     "Use this to answer 'what CfPs are coming up' — pass the user's interest keywords/locations " +
-    "(read them with manage_interests) to narrow results to what they care about.",
+    "(read them with manage_interests) to narrow results to what they care about. " +
+    "Print dates from 'deadlineLabel' / 'eventDatesLabel', which already carry the weekday.",
   inputSchema: z.object({
     keywords: z
       .array(z.string())

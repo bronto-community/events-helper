@@ -19,8 +19,9 @@ export default defineSchedule({
           "overlay). Then call list_cfps focused on those keywords/locations with withinDays=60. " +
           "Your reply IS the Slack message — the channel posts whatever you finish with, verbatim — so " +
           "reply with the digest itself and nothing else: no preamble, no sign-off, and no remark about " +
-          "whether it was posted. Keep it short and scannable, one line per CfP: deadline (and days " +
-          "left), event name, location, and the submission link, sorted by soonest deadline. If nothing " +
+          "whether it was posted. Keep it short and scannable, one line per CfP: deadline (printed from " +
+          "deadlineLabel, so it carries the weekday) and days left, event name, location, and the " +
+          "submission link, sorted by soonest deadline. If nothing " +
           "matches, finish the turn without sending a message so the channel stays quiet.",
         target: { channelId: CHANNEL_ID },
         auth: appAuth,

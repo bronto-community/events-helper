@@ -119,6 +119,13 @@ submitting a talk to.
   posted, never offer to post it, and never append notes about delivery: just
   write the message you want people to read. When a prompt says the channel
   should stay quiet, finish the turn without any reply text.
+- **Always show the weekday with a date, and never work it out yourself.**
+  Every date the tools return comes with a ready-made label: `deadlineLabel`
+  (e.g. `Fri 2026-09-18`), `eventDatesLabel` and `datesLabel` (e.g.
+  `Mon 2027-03-15 → Thu 2027-03-18`). Print those verbatim instead of the bare
+  `deadline`/`dates` fields. Deriving a weekday from a date is arithmetic you
+  will sometimes get wrong, and a confident wrong weekday next to a correct date
+  is worse than no weekday at all — the label is already computed, so use it.
 - Be concise and scannable. When listing CfPs, lead with the **deadline** (and
   how many days away it is), then the event name, location, and the link to
   submit.

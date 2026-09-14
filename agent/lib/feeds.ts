@@ -5,6 +5,7 @@ import type {
   RawEvent,
   Source,
 } from "./types.js";
+import { dateRangeLabel, withWeekday } from "./dates.js";
 import { getAllSources } from "./sources.js";
 import { errorAttributes, log } from "./log.js";
 import { OCGROUPS_ENABLED, getOcgroupsEvents } from "./ocgroups.js";
@@ -174,7 +175,13 @@ export async function queryCfps(query: CfpQuery = {}): Promise<Cfp[]> {
     return av - bv;
   });
 
-  const returned = cfps.slice(0, limit);
+  // Label at the single point every CfP consumer flows through, so the tool, the
+  // alert cards and the digest all describe a date the same way.
+  const returned = cfps.slice(0, limit).map((c) => ({
+    ...c,
+    deadlineLabel: withWeekday(c.deadline),
+    eventDatesLabel: dateRangeLabel(c.eventDates),
+  }));
   log.info("cfps queried", {
     "events_helper.query.source_count": sources.length,
     "events_helper.query.matched": cfps.length,
@@ -282,7 +289,7 @@ export async function queryEventsDetailed(query: EventQuery = {}): Promise<Event
     return av - bv;
   });
 
-  const returned = kept.slice(0, limit);
+  const returned = kept.slice(0, limit).map((e) => ({ ...e, datesLabel: dateRangeLabel(e.dates) }));
   log.info("events queried", {
     "events_helper.query.source_count": sources.length,
     "events_helper.query.ocgroups_enabled": OCGROUPS_ENABLED,

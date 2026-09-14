@@ -25,6 +25,9 @@ Ask naturally. Examples:
 - "Show me upcoming conferences in Germany."
 - "What observability events are happening online this year?"
 
+Every date is shown with its **weekday** (`Fri 2026-09-18`), so you can tell at a glance whether a
+deadline lands on a weekend.
+
 Each CfP comes back with the **submission deadline** (and how many days are left), the event
 name, location, and the link to submit. The bot only reports real entries from its sources — it
 won't invent deadlines or links.
