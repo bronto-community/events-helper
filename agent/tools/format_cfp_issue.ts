@@ -1,5 +1,6 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
+import { dateRangeLabel, withWeekday } from "../lib/dates.js";
 
 // Turns a CfP into a ready-to-file Jira issue payload. This does NOT touch Jira
 // itself — it just composes clean, consistent fields. After calling it, pass the
@@ -36,8 +37,10 @@ export default defineTool({
       .describe("Extra labels to add beyond the defaults."),
   }),
   execute(input) {
+    // The issue is read by a human weeks later, so its dates carry their weekday
+    // too — same rule as every message the bot writes.
     const deadlineLine = input.deadline
-      ? `${input.deadline}${
+      ? `${withWeekday(input.deadline)}${
           typeof input.daysUntilDeadline === "number"
             ? ` (${input.daysUntilDeadline} days left)`
             : ""
@@ -49,14 +52,14 @@ export default defineTool({
       "",
       `- Submission deadline: ${deadlineLine}`,
     ];
-    if (input.eventDates?.length) lines.push(`- Event dates: ${input.eventDates.join(", ")}`);
+    if (input.eventDates?.length) lines.push(`- Event dates: ${dateRangeLabel(input.eventDates)}`);
     if (input.location) lines.push(`- Location: ${input.location}`);
     if (input.cfpUrl) lines.push(`- Submit CfP: ${input.cfpUrl}`);
     if (input.eventUrl) lines.push(`- Event site: ${input.eventUrl}`);
     if (input.notes) lines.push("", input.notes);
 
     const summary = input.deadline
-      ? `CfP: ${input.event} — submit by ${input.deadline}`
+      ? `CfP: ${input.event} — submit by ${withWeekday(input.deadline)}`
       : `CfP: ${input.event}`;
 
     const labels = Array.from(new Set(["cfp", "conference", ...(input.labels ?? [])]));

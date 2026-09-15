@@ -2,6 +2,7 @@ import { connectSlackCredentials } from "@vercel/connect/eve";
 import { slackChannel } from "eve/channels/slack";
 import { SNOOZE_DAYS, markDismissed, markEventDismissed, markSnoozed } from "../lib/alerts.js";
 import { decodeCfpRef, resolvedBlocks } from "../lib/cards.js";
+import { withWeekday } from "../lib/dates.js";
 import { errorAttributes, log } from "../lib/log.js";
 import { isAdmin } from "../lib/roles.js";
 import { addRules, rulesFromIdAndTitle } from "../lib/spam.js";
@@ -71,8 +72,12 @@ export default slackChannel({
             "🔕 Muted for you. Marking something as team-wide spam needs an admin — ask one to run “block this as spam”.";
         }
       } else {
-        await markSnoozed(principalId, ref.i, Date.now() + SNOOZE_DAYS * DAY_MS);
-        status = `😴 Snoozed for ${SNOOZE_DAYS} days.`;
+        // Name the day it comes back, not just the span — "30 days" is something
+        // the reader has to work out, and working out a date is what we do in code.
+        const until = Date.now() + SNOOZE_DAYS * DAY_MS;
+        const untilLabel = withWeekday(new Date(until).toISOString().slice(0, 10));
+        status = `😴 Snoozed for ${SNOOZE_DAYS} days — back on ${untilLabel}.`;
+        await markSnoozed(principalId, ref.i, until);
       }
       log.info("alert interaction", {
         "events_helper.slack.action_id": action.actionId,

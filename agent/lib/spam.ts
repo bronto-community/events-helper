@@ -1,3 +1,4 @@
+import { withWeekday } from "./dates.js";
 import { eventId } from "./ids.js";
 import { log } from "./log.js";
 import * as store from "./store.js";
@@ -469,6 +470,8 @@ export interface DroppedEvent {
   name: string;
   source: string;
   date: string | null;
+  /** `date` with its weekday, ready to print (e.g. `Sat 2026-11-14`). */
+  dateLabel: string;
   location: string;
   url: string;
   score: number;
@@ -483,6 +486,7 @@ export function toDropped(e: EventItem, v: SpamVerdict): DroppedEvent {
     name: e.name,
     source: e.source,
     date: e.dates[0] ?? null,
+    dateLabel: withWeekday(e.dates[0] ?? null),
     location: e.location,
     url: e.url,
     score: v.score,
@@ -534,5 +538,12 @@ export async function saveSpamReport(dropped: DroppedEvent[], now: number): Prom
 }
 
 export async function getSpamReport(): Promise<SpamReport | null> {
-  return store.read<SpamReport | null>(REPORT_KEY, null);
+  const report = await store.read<SpamReport | null>(REPORT_KEY, null);
+  if (!report) return null;
+  // Reports written before dates carried a weekday are back-filled on read, so an
+  // old snapshot doesn't show up bare next to a fresh one.
+  return {
+    ...report,
+    sample: report.sample.map((d) => ({ ...d, dateLabel: d.dateLabel || withWeekday(d.date) })),
+  };
 }

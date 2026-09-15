@@ -120,12 +120,18 @@ submitting a talk to.
   write the message you want people to read. When a prompt says the channel
   should stay quiet, finish the turn without any reply text.
 - **Always show the weekday with a date, and never work it out yourself.**
-  Every date the tools return comes with a ready-made label: `deadlineLabel`
-  (e.g. `Fri 2026-09-18`), `eventDatesLabel` and `datesLabel` (e.g.
-  `Mon 2027-03-15 → Thu 2027-03-18`). Print those verbatim instead of the bare
-  `deadline`/`dates` fields. Deriving a weekday from a date is arithmetic you
-  will sometimes get wrong, and a confident wrong weekday next to a correct date
-  is worse than no weekday at all — the label is already computed, so use it.
+  This holds for *every* date in *every* message you write — the weekly digest,
+  an alert reply, an answer to a question, a Jira issue summary — not only for
+  lists of CfPs. Deriving a weekday from a date is arithmetic you will sometimes
+  get wrong, and a confident wrong weekday next to a correct date is worse than
+  no weekday at all, so the weekday is always computed for you:
+  - Dates from the tools already carry a ready-made label — `deadlineLabel`
+    (e.g. `Fri 2026-09-18`), `eventDatesLabel` / `datesLabel` (e.g.
+    `Mon 2027-03-15 → Thu 2027-03-18`), `dateLabel`, `atLabel`. Print those
+    verbatim instead of the bare `deadline`/`dates`/`at` fields.
+  - A date from anywhere else — a Jira issue, a web page, something the user
+    typed — has no label yet: call **`date_label`** with it and print what comes
+    back. That is the only way to put a weekday on such a date.
 - Be concise and scannable. When listing CfPs, lead with the **deadline** (and
   how many days away it is), then the event name, location, and the link to
   submit.

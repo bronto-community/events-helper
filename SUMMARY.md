@@ -571,3 +571,18 @@ attrs; AI-SDK `gen_ai.*` spans), so no trace changes were needed. Verified logs 
     anywhere west of Greenwich — checked rather than assumed, `2026-09-18` comes out as Thu under
     `TZ=Pacific/Honolulu`. Vercel runs in UTC, but `eve dev` on a laptop does not, and a weekday that
     depends on who is reading it is worse than the problem being solved.
+39. "In the messages in general it would also be important to see the weekdays." → said a second
+    time, about a bot that already shows them. Both readings were worth checking: the weekday change
+    had merged on Sunday, well before Monday's digest, so the digest did carry them. What it did not
+    cover was everything that reaches a reader by another path. The Jira issues the bot files still
+    said `2026-09-18`; the spam report and rule list printed raw ISO timestamps with milliseconds in
+    them; a snooze confirmation said "Snoozed for 30 days" and left the reader to work out which day
+    that lands on. Each of those is a message, so each of them now goes through `lib/dates.ts` —
+    including a new `timestampLabel` for the machine-shaped "when did this run" values.
+    The more interesting hole was structural. The rule says the model must never derive a weekday,
+    and the labels only exist on dates that came out of the feeds — so for a date read off a Jira
+    issue, a web page, or the user's own message, the two halves of the rule collided and the bare
+    date won. A rule that silently stops applying at the edge of one data source is not the rule we
+    wanted. So there is now a `date_label` tool: hand it any date, get the label back. The weekday is
+    still computed in code every single time, which was always the point — the tool just extends the
+    reach of that guarantee to dates the feeds never saw.
