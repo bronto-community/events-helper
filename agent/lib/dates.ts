@@ -39,3 +39,15 @@ export function dateRangeLabel(dates: string[] | null | undefined): string {
   if (!last || last === first) return withWeekday(first);
   return `${withWeekday(first)} → ${withWeekday(last)}`;
 }
+
+/**
+ * A moment in time as a readable, UTC-pinned label: `Tue 2026-09-15 07:00 UTC`.
+ * Used for the timestamps a human reads (when a scan ran, when a rule was added)
+ * — an ISO string with milliseconds and a `T` in it is a machine format.
+ */
+export function timestampLabel(ms: number | null | undefined): string {
+  if (typeof ms !== "number" || !Number.isFinite(ms)) return "";
+  const iso = new Date(ms).toISOString();
+  const day = WEEKDAYS[new Date(ms).getUTCDay()];
+  return `${day} ${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC`;
+}

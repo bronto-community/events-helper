@@ -1,5 +1,6 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
+import { timestampLabel } from "../lib/dates.js";
 import { queryEventsDetailed } from "../lib/feeds.js";
 import { log } from "../lib/log.js";
 import { callerId, isAdmin } from "../lib/roles.js";
@@ -31,7 +32,8 @@ export default defineTool({
     "'allow' (a false positive — pin it back into view; allow beats block), 'unblock' (delete a rule " +
     "by id). Rules are shared by the whole team; 'block'/'allow'/'unblock' require admin. " +
     "A 'block' on a title also catches the same listing re-posted elsewhere or on another date. " +
-    "This filter covers events only, not CfPs.",
+    "This filter covers events only, not CfPs. Print dates from 'dateLabel' / 'atLabel', which " +
+    "already carry the weekday.",
   inputSchema: z.object({
     action: z.enum(["report", "preview", "list_rules", "block", "allow", "unblock"]),
     match: z
@@ -68,6 +70,7 @@ export default defineTool({
           report: report
             ? {
                 at: new Date(report.at).toISOString(),
+                atLabel: timestampLabel(report.at),
                 total: report.total,
                 counts: report.counts,
                 dropped: report.sample.slice(0, limit),
@@ -96,7 +99,11 @@ export default defineTool({
         return {
           enabled: SPAM_FILTER_ENABLED,
           count: rules.length,
-          rules: rules.map((r) => ({ ...r, at: new Date(r.at).toISOString() })),
+          rules: rules.map((r) => ({
+            ...r,
+            at: new Date(r.at).toISOString(),
+            atLabel: timestampLabel(r.at),
+          })),
         };
       }
 
